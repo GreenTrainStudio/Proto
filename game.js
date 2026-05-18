@@ -153,31 +153,45 @@ function clearPiecesUnderOpenAreas(preferredSlots = []){
   const occupiedByOpen = new Set(state.pieces.filter(p=>p.open).map(p=>gridKeyFromPos(p.x, p.y)));
   const occupiedAll = new Set(state.pieces.filter(p=>p.open).map(p=>gridKeyFromPos(p.x, p.y)));
   const { w, h } = cellSize();
-  const preferredQueue = preferredSlots
+  const preferredPool = preferredSlots
     .map(s=>{
       const { r, c } = gridCellFromPos(s.x, s.y);
       return { x:c*w, y:r*h, key:`${r}|${c}` };
     })
     .filter(s=>!occupiedAll.has(s.key));
 
-  for(const hidden of state.pieces.filter(p=>!p.open)){
-    const key = gridKeyFromPos(hidden.x, hidden.y);
-    if(!occupiedByOpen.has(key) && !occupiedAll.has(key)) {
-      occupiedAll.add(key);
-      continue;
-    }
+  const hiddenPieces = state.pieces.filter(p=>!p.open);
+  const conflicted = hiddenPieces.filter(h=>occupiedByOpen.has(gridKeyFromPos(h.x, h.y)));
+  const freeHidden = hiddenPieces.filter(h=>!occupiedByOpen.has(gridKeyFromPos(h.x, h.y)));
 
+  for(const hidden of freeHidden){
+    const key = gridKeyFromPos(hidden.x, hidden.y);
+    if(!occupiedAll.has(key)) {
+      occupiedAll.add(key);
+    }
+  }
+
+  for(const hidden of conflicted){
     let placedInPreferred = false;
-    while(preferredQueue.length){
-      const slot = preferredQueue.shift();
-      if(!occupiedAll.has(slot.key)){
-        hidden.x = slot.x;
-        hidden.y = slot.y;
-        position(hidden);
-        occupiedAll.add(slot.key);
-        placedInPreferred = true;
-        break;
+    let preferredIdx = -1;
+    let preferredDist = Number.POSITIVE_INFINITY;
+    for(let i=0;i<preferredPool.length;i++){
+      const slot = preferredPool[i];
+      if(occupiedAll.has(slot.key)) continue;
+      const d = Math.hypot(hidden.x-slot.x, hidden.y-slot.y);
+      if(d < preferredDist){
+        preferredDist = d;
+        preferredIdx = i;
       }
+    }
+    if(preferredIdx !== -1){
+      const slot = preferredPool[preferredIdx];
+      hidden.x = slot.x;
+      hidden.y = slot.y;
+      position(hidden);
+      occupiedAll.add(slot.key);
+      preferredPool.splice(preferredIdx, 1);
+      placedInPreferred = true;
     }
     if(placedInPreferred) continue;
 
