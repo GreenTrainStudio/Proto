@@ -81,7 +81,7 @@
         const rt=!inBounds(me.r,me.c+1)||g.pieceGroup[g.board[rcToIndex(me.r,me.c+1)]]!==groupId;
         tile.style.borderTopLeftRadius=(up||lf)?'10px':'0'; tile.style.borderTopRightRadius=(up||rt)?'10px':'0'; tile.style.borderBottomLeftRadius=(dn||lf)?'10px':'0'; tile.style.borderBottomRightRadius=(dn||rt)?'10px':'0';
       }
-      tile.addEventListener('dragstart',e=>{state.dragFrom=pos; state.dragGroupId=groupId; e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',String(pos)); render();});
+      tile.addEventListener('dragstart',e=>{state.dragFrom=pos; state.dragGroupId=groupId; e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',String(pos));});
       tile.addEventListener('dragover',e=>e.preventDefault());
       tile.addEventListener('drop',e=>{e.preventDefault(); swapTiles(state.dragFrom,pos); state.dragFrom=null; state.dragGroupId=null; render();});
       tile.addEventListener('dragend',()=>{state.dragFrom=null; state.dragGroupId=null; render();});
