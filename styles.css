@@ -19,14 +19,17 @@ body {
   color: #f5f6f8;
   overscroll-behavior-y: none;
   touch-action: none;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
 }
 .app {
   display: grid;
   gap: 12px;
   padding: 16px;
   justify-items: center;
+  align-content: center;
 }
-header { text-align: center; }
 code { background: #222938; padding: 2px 6px; border-radius: 6px; }
 .controls { display: flex; gap: 12px; align-items: center; }
 button {
