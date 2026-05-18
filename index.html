@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hidden Neighbor Puzzle (HTML5)</title>
+  <style>
+    :root {
+      --bg1: #dbeafe;
+      --bg2: #e0e7ff;
+      --bg3: #ede9fe;
+      --panel: rgba(255,255,255,.85);
+      --text: #0f172a;
+      --muted: #64748b;
+      --tileHidden1: #334155;
+      --tileHidden2: #0f172a;
+      --gridBg: #1e293b;
+      --cyan: #22d3ee;
+      --emerald: #34d399;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      color: var(--text);
+      min-height: 100vh;
+      background: linear-gradient(135deg, var(--bg1), var(--bg2), var(--bg3));
+      padding: 16px;
+    }
+    .wrap { max-width: 1200px; margin: 0 auto; display: grid; gap: 16px; grid-template-columns: 1fr 320px; }
+    .card {
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,.7);
+      border-radius: 18px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, .15);
+      backdrop-filter: blur(4px);
+      padding: 18px;
+    }
+    .header { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 12px; }
+    h1 { margin: 0; font-size: 28px; }
+    .sub { margin-top: 4px; color: var(--muted); font-size: 14px; }
+    button {
+      border: none; padding: 10px 14px; border-radius: 10px; background: #0f172a; color: #fff;
+      cursor: pointer; font-weight: 600;
+    }
+    button:hover { opacity: .92; }
+    .board {
+      width: min(700px, 100%);
+      aspect-ratio: 1;
+      margin: 0 auto;
+      background: var(--gridBg);
+      border-radius: 16px;
+      padding: 8px;
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+    .tile {
+      position: relative;
+      overflow: hidden;
+      border: 2px solid rgba(255,255,255,.3);
+      border-radius: 10px;
+      user-select: none;
+      cursor: grab;
+      transition: transform .12s ease, box-shadow .12s ease, border-radius .12s ease;
+    }
+    .tile:active { cursor: grabbing; }
+    .tile.hidden {
+      background: linear-gradient(135deg, var(--tileHidden1), var(--tileHidden2));
+      display: grid;
+      place-items: center;
+    }
+    .q {
+      color: rgba(255,255,255,.9);
+      font-size: 14px;
+      font-weight: 700;
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 8px;
+      padding: 4px 8px;
+    }
+    .num, .grp {
+      position: absolute;
+      font-size: 10px;
+      font-weight: 700;
+      color: #fff;
+      border-radius: 6px;
+      padding: 2px 6px;
+    }
+    .num { top: 4px; left: 4px; background: rgba(0,0,0,.45); }
+    .grp { bottom: 4px; right: 4px; background: rgba(6,182,212,.9); }
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+    .pill { background: #e2e8f0; border-radius: 14px; padding: 10px; }
+    .small { color: var(--muted); font-size: 12px; }
+    .big { font-size: 28px; font-weight: 800; }
+    .box { background: #e2e8f0; border-radius: 14px; padding: 12px; font-size: 14px; }
+    .box.dark { background: #0f172a; color: #fff; }
+    .box.dark ul { margin: 8px 0 0 18px; padding: 0; color: rgba(255,255,255,.85); }
+    @media (max-width: 980px) { .wrap { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="card">
+      <div class="header">
+        <div>
+          <h1>Hidden Neighbor Puzzle</h1>
+          <div class="sub">7x7 пазл с монолитными деталями (HTML5)</div>
+        </div>
+        <button id="newGameBtn">Новая игра</button>
+      </div>
+      <div id="board" class="board"></div>
+    </section>
+
+    <aside class="card">
+      <div class="small" style="text-transform:uppercase;font-weight:700;letter-spacing:.08em;">Статус</div>
+      <div id="message" style="font-size:22px;font-weight:800;margin-top:4px;">...</div>
+
+      <div class="stats">
+        <div class="pill"><div class="small">Ходы</div><div id="moves" class="big">0</div></div>
+        <div class="pill"><div class="small">Детали</div><div id="groups" class="big">0</div></div>
+      </div>
+
+      <div class="box"><b>Как играть:</b> перетаскивай любой кусочек монолитной области — вся слитая деталь переедет целиком.</div>
+      <div class="box dark" style="margin-top:10px;">
+        <div style="font-weight:700;">Правила прототипа</div>
+        <ul>
+          <li>Картинка нарезана на 49 частей.</li>
+          <li>В начале открыт случайный кусочек и 4 соседа.</li>
+          <li>Новые части открываются после удачного совмещения.</li>
+          <li>Голубая рамка — кусок в монолитной детали.</li>
+        </ul>
+      </div>
+    </aside>
+  </div>
+
+<script>
+(() => {
+  const SIZE = 7;
+  const TOTAL = SIZE * SIZE;
+  const IMG = "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1000&q=80";
+
+  const state = {
+    game: null,
+    dragFrom: null,
+    dragGroupId: null,
+  };
+
+  const $board = document.getElementById('board');
+  const $msg = document.getElementById('message');
+  const $moves = document.getElementById('moves');
+  const $groups = document.getElementById('groups');
+
+  const shuffle = (arr) => {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = (Math.random() * (i + 1)) | 0;
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  };
+
+  const indexToRC = i => ({ r: Math.floor(i / SIZE), c: i % SIZE });
+  const rcToIndex = (r, c) => r * SIZE + c;
+  const inBounds = (r, c) => r >= 0 && r < SIZE && c >= 0 && c < SIZE;
+
+  function neighbors(index) {
+    const { r, c } = indexToRC(index);
+    const out = [];
+    if (r > 0) out.push(rcToIndex(r - 1, c));
+    if (r < SIZE - 1) out.push(rcToIndex(r + 1, c));
+    if (c > 0) out.push(rcToIndex(r, c - 1));
+    if (c < SIZE - 1) out.push(rcToIndex(r, c + 1));
+    return out;
+  }
+  const edgeKey = (a, b) => `${Math.min(a,b)}-${Math.max(a,b)}`;
+
+  function areCorrectOrientedNeighbors(piece, nPiece, pos, nPos) {
+    const p = indexToRC(piece), np = indexToRC(nPiece), bp = indexToRC(pos), bnp = indexToRC(nPos);
+    return np.r - p.r === bnp.r - bp.r && np.c - p.c === bnp.c - bp.c && Math.abs(np.r - p.r) + Math.abs(np.c - p.c) === 1;
+  }
+
+  function getGroupPositions(board, pieceGroup, groupId) {
+    const positions = [];
+    for (let pos = 0; pos < TOTAL; pos++) if (pieceGroup[board[pos]] === groupId) positions.push(pos);
+    return positions;
+  }
+
+  const getGroupSize = (pieceGroup, groupId) => pieceGroup.reduce((n, id) => n + (id === groupId ? 1 : 0), 0);
+
+  function makeGame() {
+    const original = Array.from({ length: TOTAL }, (_, i) => i);
+    let board = shuffle(original);
+    if (original.every((piece, pos) => piece === board[pos])) board = shuffle(original);
+
+    const start = (Math.random() * TOTAL) | 0;
+    const visible = new Set([start, ...neighbors(start)]);
+    return {
+      board,
+      revealed: board.map((piece) => visible.has(piece)),
+      pieceGroup: Array.from({ length: TOTAL }, (_, i) => i),
+      moves: 0,
+      completedEdges: new Set(),
+      message: 'Открой картинку, соединяя правильных соседей',
+    };
+  }
+
+  function revealAround(positions, revealed) {
+    const next = revealed.slice();
+    for (const pos of positions) {
+      next[pos] = true;
+      for (const n of neighbors(pos)) next[n] = true;
+    }
+    return next;
+  }
+
+  function mergeGroupsIfNeeded(board, revealed, pieceGroup, completedEdges, changedPositions) {
+    let nextPieceGroup = pieceGroup.slice();
+    const nextEdges = new Set(completedEdges);
+    let nextRevealed = revealed.slice();
+    const mergePositions = new Set();
+    let found = 0;
+
+    const toCheck = new Set();
+    for (const pos of changedPositions) { toCheck.add(pos); for (const n of neighbors(pos)) toCheck.add(n); }
+
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const pos of toCheck) {
+        const piece = board[pos];
+        for (const nPos of neighbors(pos)) {
+          const nPiece = board[nPos];
+          const key = edgeKey(piece, nPiece);
+          const gA = nextPieceGroup[piece], gB = nextPieceGroup[nPiece];
+          if (gA !== gB && nextRevealed[pos] && nextRevealed[nPos] && !nextEdges.has(key) && areCorrectOrientedNeighbors(piece, nPiece, pos, nPos)) {
+            const keep = Math.min(gA, gB), remove = Math.max(gA, gB);
+            nextPieceGroup = nextPieceGroup.map(id => id === remove ? keep : id);
+            nextEdges.add(key);
+            mergePositions.add(pos); mergePositions.add(nPos);
+            for (const p of getGroupPositions(board, nextPieceGroup, keep)) {
+              mergePositions.add(p); toCheck.add(p); for (const near of neighbors(p)) toCheck.add(near);
+            }
+            found++; changed = true;
+          }
+        }
+      }
+    }
+
+    if (mergePositions.size) nextRevealed = revealAround([...mergePositions], nextRevealed);
+    return { nextRevealed, nextPieceGroup, nextEdges, found };
+  }
+
+  function tryMoveGroup(board, revealed, pieceGroup, from, to) {
+    const movedPiece = board[from];
+    const movedGroup = pieceGroup[movedPiece];
+    const movingPositions = getGroupPositions(board, pieceGroup, movedGroup);
+    const fromRC = indexToRC(from), toRC = indexToRC(to);
+    const dr = toRC.r - fromRC.r, dc = toRC.c - fromRC.c;
+    const movingSet = new Set(movingPositions);
+    const targetPositions = [];
+
+    for (const pos of movingPositions) {
+      const { r, c } = indexToRC(pos);
+      const nr = r + dr, nc = c + dc;
+      if (!inBounds(nr, nc)) return null;
+      targetPositions.push(rcToIndex(nr, nc));
+    }
+
+    const targetSet = new Set(targetPositions);
+    const nextBoard = board.slice();
+    const nextRevealed = revealed.slice();
+
+    if (movingPositions.length === 1) {
+      [nextBoard[from], nextBoard[to]] = [nextBoard[to], nextBoard[from]];
+      [nextRevealed[from], nextRevealed[to]] = [nextRevealed[to], nextRevealed[from]];
+      return { board: nextBoard, revealed: nextRevealed, changedPositions: [from, to] };
+    }
+
+    const incoming = targetPositions.filter(pos => !movingSet.has(pos));
+    const outgoing = movingPositions.filter(pos => !targetSet.has(pos));
+    if (incoming.length !== outgoing.length) return null;
+
+    const incomingByRel = new Map();
+    for (const pos of incoming) {
+      const p = indexToRC(pos);
+      incomingByRel.set(`${p.r - toRC.r},${p.c - toRC.c}`, pos);
+    }
+
+    for (const pos of outgoing) {
+      const p = indexToRC(pos);
+      const source = incomingByRel.get(`${p.r - fromRC.r},${p.c - fromRC.c}`);
+      if (source === undefined) return null;
+      nextBoard[pos] = board[source];
+      nextRevealed[pos] = revealed[source];
+    }
+
+    for (let i = 0; i < movingPositions.length; i++) {
+      nextBoard[targetPositions[i]] = board[movingPositions[i]];
+      nextRevealed[targetPositions[i]] = revealed[movingPositions[i]];
+    }
+
+    return { board: nextBoard, revealed: nextRevealed, changedPositions: [...new Set([...movingPositions, ...targetPositions])] };
+  }
+
+  function swapTiles(from, to) {
+    if (from == null || to == null || from === to || isWon()) return;
+    const prev = state.game;
+    const moved = tryMoveGroup(prev.board, prev.revealed, prev.pieceGroup, from, to);
+    if (!moved) { prev.message = 'Монолитную деталь нельзя поставить сюда'; render(); return; }
+
+    const { nextRevealed, nextPieceGroup, nextEdges, found } = mergeGroupsIfNeeded(moved.board, moved.revealed, prev.pieceGroup, prev.completedEdges, moved.changedPositions);
+    const solvedCount = moved.board.filter((piece, pos) => piece === pos).length;
+    const groupCount = new Set(nextPieceGroup).size;
+
+    state.game = {
+      board: moved.board,
+      revealed: nextRevealed,
+      pieceGroup: nextPieceGroup,
+      completedEdges: nextEdges,
+      moves: prev.moves + 1,
+      message: solvedCount === TOTAL || groupCount === 1 ? 'Пазл собран!' : found > 0 ? `Детали слились в монолит: ${found}` : 'Пока нет правильного соединения'
+    };
+    render();
+  }
+
+  function isWon() {
+    const solvedCount = state.game.board.filter((piece, pos) => piece === pos).length;
+    const groupCount = new Set(state.game.pieceGroup).size;
+    return solvedCount === TOTAL || groupCount === 1;
+  }
+
+  function render() {
+    const g = state.game;
+    const groupCount = new Set(g.pieceGroup).size;
+    $msg.textContent = g.message;
+    $moves.textContent = g.moves;
+    $groups.textContent = groupCount;
+
+    $board.innerHTML = '';
+    g.board.forEach((piece, pos) => {
+      const revealed = g.revealed[pos];
+      const groupId = g.pieceGroup[piece];
+      const groupSize = getGroupSize(g.pieceGroup, groupId);
+      const correct = piece === pos;
+      const hasMergedNeighbor = neighbors(pos).some((nPos) => g.pieceGroup[g.board[nPos]] === groupId);
+      const draggedGroup = state.dragGroupId !== null && groupId === state.dragGroupId;
+
+      const tile = document.createElement('div');
+      tile.className = 'tile';
+      tile.draggable = !isWon();
+      if (isWon()) tile.style.cursor = 'default';
+
+      tile.style.borderColor = correct ? 'var(--emerald)' : (groupSize > 1 ? '#67e8f9' : 'rgba(255,255,255,.3)');
+      if (groupSize > 1) tile.style.boxShadow = '0 0 0 2px rgba(103,232,249,.3)';
+      if (correct) tile.style.boxShadow = '0 0 0 2px rgba(52,211,153,.35)';
+      if (revealed && hasMergedNeighbor) tile.style.borderRadius = '0';
+      if (draggedGroup) tile.style.opacity = '.6';
+
+      tile.addEventListener('dragstart', (e) => {
+        state.dragFrom = pos;
+        state.dragGroupId = groupId;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', String(pos));
+        render();
+      });
+      tile.addEventListener('dragover', (e) => e.preventDefault());
+      tile.addEventListener('drop', (e) => {
+        e.preventDefault();
+        swapTiles(state.dragFrom, pos);
+        state.dragFrom = null;
+        state.dragGroupId = null;
+        render();
+      });
+      tile.addEventListener('dragend', () => {
+        state.dragFrom = null;
+        state.dragGroupId = null;
+        render();
+      });
+
+      if (revealed) {
+        tile.style.backgroundImage = `url(${IMG})`;
+        tile.style.backgroundSize = `${SIZE * 100}% ${SIZE * 100}%`;
+        const { r, c } = indexToRC(piece);
+        tile.style.backgroundPosition = `${(c / (SIZE - 1)) * 100}% ${(r / (SIZE - 1)) * 100}%`;
+
+        const num = document.createElement('div');
+        num.className = 'num';
+        num.textContent = String(piece + 1);
+        tile.appendChild(num);
+        if (groupSize > 1) {
+          const grp = document.createElement('div');
+          grp.className = 'grp';
+          grp.textContent = `x${groupSize}`;
+          tile.appendChild(grp);
+        }
+      } else {
+        tile.classList.add('hidden');
+        const q = document.createElement('div');
+        q.className = 'q';
+        q.textContent = '?';
+        tile.appendChild(q);
+      }
+
+      tile.title = groupSize > 1 ? `Монолитная деталь: ${groupSize}` : 'Одиночная деталь';
+      $board.appendChild(tile);
+    });
+  }
+
+  document.getElementById('newGameBtn').addEventListener('click', () => {
+    state.game = makeGame();
+    state.dragFrom = null;
+    state.dragGroupId = null;
+    render();
+  });
+
+  state.game = makeGame();
+  render();
+})();
+</script>
+</body>
+</html>
