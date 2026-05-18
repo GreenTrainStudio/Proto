@@ -28,11 +28,19 @@ function neighbors(i){
 
 async function resolveImage(){
   for(const name of ['images/source.jpg','images/source.png']){
-    if(await exists(name)) return name;
+    if(await canLoadImage(name)) return name;
   }
   throw new Error('Не найдено images/source.jpg или images/source.png');
 }
-function exists(url){ return fetch(url,{method:'HEAD'}).then(r=>r.ok).catch(()=>false); }
+
+function canLoadImage(url){
+  return new Promise((resolve)=>{
+    const img = new Image();
+    img.onload = () => resolve(true);
+    img.onerror = () => resolve(false);
+    img.src = `${url}?v=${Date.now()}`;
+  });
+}
 
 async function init(){
   statusEl.className='';
