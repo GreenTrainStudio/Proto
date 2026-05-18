@@ -3,12 +3,18 @@
   --cell: calc(var(--board-size) / 7);
 }
 
+html {
+  overscroll-behavior-y: none;
+}
+
 * { box-sizing: border-box; }
 body {
   margin: 0;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   background: #12141a;
   color: #f5f6f8;
+  overscroll-behavior-y: none;
+  touch-action: none;
 }
 .app {
   display: grid;
@@ -35,6 +41,7 @@ button {
   position: relative;
   width: 100%;
   height: 100%;
+  touch-action: none;
 }
 .piece {
   position: absolute;
@@ -46,6 +53,7 @@ button {
   box-shadow: 0 2px 8px rgba(0,0,0,.4);
   cursor: grab;
   user-select: none;
+  touch-action: none;
 }
 .piece.hidden {
   background: repeating-linear-gradient(45deg,#3a435a,#3a435a 8px,#2f374b 8px,#2f374b 16px);
