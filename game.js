@@ -137,6 +137,37 @@ function ensureVisiblePieceOnFreeSlot(piece){
   }
 }
 
+function clearPiecesUnderOpenAreas(){
+  const occupiedByOpen = new Set(state.pieces.filter(p=>p.open).map(p=>`${p.x}|${p.y}`));
+  const { w, h } = cellSize();
+
+  for(const hidden of state.pieces.filter(p=>!p.open)){
+    const key = `${hidden.x}|${hidden.y}`;
+    if(!occupiedByOpen.has(key)) continue;
+
+    let best = null;
+    let bestDist = Number.POSITIVE_INFINITY;
+    for(let r=0;r<GRID;r++){
+      for(let c=0;c<GRID;c++){
+        const x = c*w;
+        const y = r*h;
+        const slotKey = `${x}|${y}`;
+        if(occupiedByOpen.has(slotKey)) continue;
+        const d = Math.hypot(hidden.x-x, hidden.y-y);
+        if(d < bestDist){
+          bestDist = d;
+          best = {x,y};
+        }
+      }
+    }
+    if(best){
+      hidden.x = best.x;
+      hidden.y = best.y;
+      position(hidden);
+    }
+  }
+}
+
 function bindDrag(piece){
   piece.el.addEventListener('pointerdown',e=>{
     if(!piece.open) return;
@@ -190,6 +221,7 @@ function finishDrag(){
     }
   }
   if(merged){
+    clearPiecesUnderOpenAreas();
     revealAfterMerge(mergedRoots);
     refreshMergedVisuals();
     checkWin();
