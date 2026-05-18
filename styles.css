@@ -1,6 +1,9 @@
 :root {
-  --board-size: min(88vw, 88vh, 760px);
-  --cell: calc(var(--board-size) / 7);
+  --board-max-w: min(90vw, 900px);
+  --board-max-h: min(78vh, 820px);
+  --cols: 7;
+  --rows: 7;
+  --board-aspect: 1 / 1;
 }
 
 html {
@@ -30,8 +33,8 @@ button {
   background: #4f7bff; color: #fff; cursor: pointer; font-weight: 600;
 }
 .board-wrap {
-  width: var(--board-size);
-  height: var(--board-size);
+  width: min(var(--board-max-w), calc(var(--board-max-h) * var(--board-aspect)));
+  aspect-ratio: var(--board-aspect);
   border: 2px solid #303a52;
   border-radius: 12px;
   background: radial-gradient(circle at 20% 20%, #1f2533, #171b26);
@@ -45,8 +48,8 @@ button {
 }
 .piece {
   position: absolute;
-  width: var(--cell);
-  height: var(--cell);
+  width: calc(100% / var(--cols));
+  height: calc(100% / var(--rows));
   border: 1px solid rgba(255,255,255,.2);
   border-radius: 8px;
   background-size: 700% 700%;

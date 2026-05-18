@@ -1,5 +1,10 @@
-const GRID = 7;
-const TOTAL = GRID * GRID;
+const SLICE_CONFIG = {
+  rows: 7,
+  cols: 7,
+};
+const ROWS = SLICE_CONFIG.rows;
+const COLS = SLICE_CONFIG.cols;
+const TOTAL = ROWS * COLS;
 const INITIAL_OPEN = 3;
 const SNAP = 18;
 const REVEAL_CONFIG = {
@@ -19,26 +24,26 @@ const state = {
   drag: null,
 };
 
-function idx(r, c) { return r * GRID + c; }
-function rc(i) { return [Math.floor(i / GRID), i % GRID]; }
+function idx(r, c) { return r * COLS + c; }
+function rc(i) { return [Math.floor(i / COLS), i % COLS]; }
 function find(a){ while(state.parent[a]!==a){ state.parent[a]=state.parent[state.parent[a]]; a=state.parent[a]; } return a; }
 function union(a,b){ a=find(a); b=find(b); if(a!==b) state.parent[b]=a; }
 
 function neighbors(i){
   const [r,c]=rc(i); const n=[];
-  if(r>0)n.push(idx(r-1,c)); if(r<GRID-1)n.push(idx(r+1,c));
-  if(c>0)n.push(idx(r,c-1)); if(c<GRID-1)n.push(idx(r,c+1));
+  if(r>0)n.push(idx(r-1,c)); if(r<ROWS-1)n.push(idx(r+1,c));
+  if(c>0)n.push(idx(r,c-1)); if(c<COLS-1)n.push(idx(r,c+1));
   return n;
 }
 
 function cellSize(){
-  return { w: board.clientWidth / GRID, h: board.clientHeight / GRID };
+  return { w: board.clientWidth / COLS, h: board.clientHeight / ROWS };
 }
 
 function gridCellFromPos(x, y){
   const { w, h } = cellSize();
-  const c = Math.max(0, Math.min(GRID - 1, Math.round(x / w)));
-  const r = Math.max(0, Math.min(GRID - 1, Math.round(y / h)));
+  const c = Math.max(0, Math.min(COLS - 1, Math.round(x / w)));
+  const r = Math.max(0, Math.min(ROWS - 1, Math.round(y / h)));
   return { r, c };
 }
 
@@ -76,9 +81,11 @@ async function init(){
   state.pieces=[]; state.parent=[];
   try { state.imgUrl = await resolveImage(); }
   catch(e){ statusEl.textContent=e.message; return; }
+  applySliceConfigToLayout();
+  await applyImageAspectToBoard();
 
-  const cellW = board.clientWidth / GRID;
-  const cellH = board.clientHeight / GRID;
+  const cellW = board.clientWidth / COLS;
+  const cellH = board.clientHeight / ROWS;
   const shuffledSlots = shuffle([...Array(TOTAL).keys()]);
 
   for(let i=0;i<TOTAL;i++){
@@ -113,8 +120,29 @@ function openPiece(i){
   ensureVisiblePieceOnFreeSlot(p);
   p.open=true; p.el.classList.remove('hidden'); p.el.classList.add('open');
   p.el.style.backgroundImage=`url(${state.imgUrl})`;
-  p.el.style.backgroundPosition=`${(p.c/(GRID-1))*100}% ${(p.r/(GRID-1))*100}%`;
+  const xDen = Math.max(COLS - 1, 1);
+  const yDen = Math.max(ROWS - 1, 1);
+  p.el.style.backgroundPosition=`${(p.c/xDen)*100}% ${(p.r/yDen)*100}%`;
   refreshMergedVisuals();
+}
+
+function applySliceConfigToLayout(){
+  document.documentElement.style.setProperty('--cols', String(COLS));
+  document.documentElement.style.setProperty('--rows', String(ROWS));
+}
+
+function applyImageAspectToBoard(){
+  return new Promise((resolve)=>{
+    const img = new Image();
+    img.onload = () => {
+      if(img.naturalWidth && img.naturalHeight){
+        document.documentElement.style.setProperty('--board-aspect', `${img.naturalWidth} / ${img.naturalHeight}`);
+      }
+      resolve();
+    };
+    img.onerror = () => resolve();
+    img.src = `${state.imgUrl}?v=${Date.now()}`;
+  });
 }
 
 function ensureVisiblePieceOnFreeSlot(piece){
@@ -129,8 +157,8 @@ function ensureVisiblePieceOnFreeSlot(piece){
   const { w, h } = cellSize();
   let best = null;
   let bestDist = Number.POSITIVE_INFINITY;
-  for(let r=0;r<GRID;r++){
-    for(let c=0;c<GRID;c++){
+  for(let r=0;r<ROWS;r++){
+    for(let c=0;c<COLS;c++){
       const x = c*w;
       const y = r*h;
       const key = `${r}|${c}`;
@@ -197,8 +225,8 @@ function clearPiecesUnderOpenAreas(preferredSlots = []){
 
     let best = null;
     let bestDist = Number.POSITIVE_INFINITY;
-    for(let r=0;r<GRID;r++){
-      for(let c=0;c<GRID;c++){
+    for(let r=0;r<ROWS;r++){
+      for(let c=0;c<COLS;c++){
         const x = c*w;
         const y = r*h;
         const slotKey = `${r}|${c}`;
@@ -248,8 +276,8 @@ function resolveAnyOverlaps(){
   for(const p of overlaps){
     let best = null;
     let bestDist = Number.POSITIVE_INFINITY;
-    for(let r=0;r<GRID;r++){
-      for(let c=0;c<GRID;c++){
+    for(let r=0;r<ROWS;r++){
+      for(let c=0;c<COLS;c++){
         const slotKey = `${r}|${c}`;
         if(used.has(slotKey)) continue;
         const x = c*w;
@@ -441,8 +469,8 @@ function refreshMergedVisuals(){
 
     const [r,c] = [p.r,p.c];
     const top = r>0 ? state.pieces[idx(r-1,c)] : null;
-    const right = c<GRID-1 ? state.pieces[idx(r,c+1)] : null;
-    const bottom = r<GRID-1 ? state.pieces[idx(r+1,c)] : null;
+    const right = c<COLS-1 ? state.pieces[idx(r,c+1)] : null;
+    const bottom = r<ROWS-1 ? state.pieces[idx(r+1,c)] : null;
     const left = c>0 ? state.pieces[idx(r,c-1)] : null;
 
     const connectedTop = top && top.open && find(top.i)===root;
@@ -468,7 +496,7 @@ function checkWin(){
 
 function position(p){
   p.el.style.left=`${p.x}px`; p.el.style.top=`${p.y}px`;
-  p.el.style.zIndex = String(p.open ? 10 + p.r*GRID + p.c : 1);
+  p.el.style.zIndex = String(p.open ? 10 + p.r*COLS + p.c : 1);
 }
 function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]];} return a; }
 
