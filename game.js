@@ -233,6 +233,14 @@ function finishDrag(){
   }
 }
 
+function groupSizeByRoot(root){
+  let count = 0;
+  for(const p of state.pieces){
+    if(find(p.i)===root) count++;
+  }
+  return count;
+}
+
 function applyGridSwapIfNeeded(drag){
   const movedSet = new Set(drag.group.map(p=>p.i));
   const origById = new Map(drag.orig.map(o=>[o.p.i,{x:o.x,y:o.y}]));
@@ -251,6 +259,15 @@ function applyGridSwapIfNeeded(drag){
 
   if(!collided.size){
     return true;
+  }
+
+  for(const p of collided){
+    const root = find(p.i);
+    const mergedArea = groupSizeByRoot(root) > 1;
+    if(mergedArea){
+      drag.orig.forEach(o=>{ o.p.x=o.x; o.p.y=o.y; position(o.p); });
+      return false;
+    }
   }
 
   const occupiedByOthers = new Set(
