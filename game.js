@@ -221,16 +221,28 @@ function clearPiecesUnderOpenAreas(preferredSlots = []){
 
 function resolveAnyOverlaps(){
   const { w, h } = cellSize();
-  const used = new Set();
-  const overlaps = [];
-
+  const byCell = new Map();
   for(const p of state.pieces){
     const key = gridKeyFromPos(p.x, p.y);
-    if(!used.has(key)){
+    if(!byCell.has(key)) byCell.set(key, []);
+    byCell.get(key).push(p);
+  }
+
+  const used = new Set();
+  const overlaps = [];
+  for(const [key, pieces] of byCell.entries()){
+    if(pieces.length === 1){
       used.add(key);
       continue;
     }
-    overlaps.push(p);
+
+    const mergedAnchors = pieces.filter(p=>groupSizeByRoot(find(p.i)) > 1);
+    const anchor = mergedAnchors[0] || pieces[0];
+    used.add(gridKeyFromPos(anchor.x, anchor.y));
+
+    for(const p of pieces){
+      if(p.i !== anchor.i) overlaps.push(p);
+    }
   }
 
   for(const p of overlaps){
