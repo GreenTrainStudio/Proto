@@ -326,8 +326,13 @@ function bindDrag(piece){
     const minDy = -minY;
     const maxDy = board.clientHeight - h - maxY;
 
-    dx = Math.max(minDx, Math.min(maxDx, dx));
-    dy = Math.max(minDy, Math.min(maxDy, dy));
+    const minDxStep = Math.ceil(minDx / w) * w;
+    const maxDxStep = Math.floor(maxDx / w) * w;
+    const minDyStep = Math.ceil(minDy / h) * h;
+    const maxDyStep = Math.floor(maxDy / h) * h;
+
+    dx = Math.max(minDxStep, Math.min(maxDxStep, dx));
+    dy = Math.max(minDyStep, Math.min(maxDyStep, dy));
 
     state.drag.orig.forEach(o=>{ o.p.x=o.x+dx; o.p.y=o.y+dy; position(o.p); });
   });
