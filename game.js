@@ -98,10 +98,43 @@ async function init(){
 
 function openPiece(i){
   const p=state.pieces[i]; if(p.open) return;
+  ensureVisiblePieceOnFreeSlot(p);
   p.open=true; p.el.classList.remove('hidden'); p.el.classList.add('open');
   p.el.style.backgroundImage=`url(${state.imgUrl})`;
   p.el.style.backgroundPosition=`${(p.c/(GRID-1))*100}% ${(p.r/(GRID-1))*100}%`;
   refreshMergedVisuals();
+}
+
+function ensureVisiblePieceOnFreeSlot(piece){
+  const occupied = new Set(
+    state.pieces
+      .filter(p=>p.open && p.i!==piece.i)
+      .map(p=>`${p.x}|${p.y}`)
+  );
+  const ownKey = `${piece.x}|${piece.y}`;
+  if(!occupied.has(ownKey)) return;
+
+  const { w, h } = cellSize();
+  let best = null;
+  let bestDist = Number.POSITIVE_INFINITY;
+  for(let r=0;r<GRID;r++){
+    for(let c=0;c<GRID;c++){
+      const x = c*w;
+      const y = r*h;
+      const key = `${x}|${y}`;
+      if(occupied.has(key)) continue;
+      const d = Math.hypot(piece.x-x, piece.y-y);
+      if(d < bestDist){
+        bestDist = d;
+        best = {x,y};
+      }
+    }
+  }
+  if(best){
+    piece.x = best.x;
+    piece.y = best.y;
+    position(piece);
+  }
 }
 
 function bindDrag(piece){
