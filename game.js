@@ -101,6 +101,7 @@ function openPiece(i){
   p.open=true; p.el.classList.remove('hidden'); p.el.classList.add('open');
   p.el.style.backgroundImage=`url(${state.imgUrl})`;
   p.el.style.backgroundPosition=`${(p.c/(GRID-1))*100}% ${(p.r/(GRID-1))*100}%`;
+  refreshMergedVisuals();
 }
 
 function bindDrag(piece){
@@ -157,6 +158,7 @@ function finishDrag(){
   }
   if(merged){
     revealAfterMerge(mergedRoots);
+    refreshMergedVisuals();
     checkWin();
   }
 }
@@ -222,6 +224,50 @@ function revealAfterMerge(mergedRoots = new Set()){
       const extraToOpen = Math.min(REVEAL_CONFIG.extraPiecesCount, remaining.length);
       for(let i=0;i<extraToOpen;i++) openPiece(remaining[i]);
     }
+  }
+}
+
+function refreshMergedVisuals(){
+  for(const p of state.pieces){
+    if(!p.open){
+      p.el.classList.remove('merged');
+      continue;
+    }
+    const root = find(p.i);
+    const sameGroupNeighbors = neighbors(p.i).filter(n=>state.pieces[n].open && find(n)===root);
+    const isMerged = sameGroupNeighbors.length > 0;
+    p.el.classList.toggle('merged', isMerged);
+
+    p.el.style.borderTopColor = '';
+    p.el.style.borderRightColor = '';
+    p.el.style.borderBottomColor = '';
+    p.el.style.borderLeftColor = '';
+    p.el.style.borderTopWidth = '';
+    p.el.style.borderRightWidth = '';
+    p.el.style.borderBottomWidth = '';
+    p.el.style.borderLeftWidth = '';
+    p.el.style.borderTopLeftRadius = '';
+    p.el.style.borderTopRightRadius = '';
+    p.el.style.borderBottomRightRadius = '';
+    p.el.style.borderBottomLeftRadius = '';
+
+    if(!isMerged) continue;
+
+    const [r,c] = [p.r,p.c];
+    const top = r>0 ? state.pieces[idx(r-1,c)] : null;
+    const right = c<GRID-1 ? state.pieces[idx(r,c+1)] : null;
+    const bottom = r<GRID-1 ? state.pieces[idx(r+1,c)] : null;
+    const left = c>0 ? state.pieces[idx(r,c-1)] : null;
+
+    const connectedTop = top && top.open && find(top.i)===root;
+    const connectedRight = right && right.open && find(right.i)===root;
+    const connectedBottom = bottom && bottom.open && find(bottom.i)===root;
+    const connectedLeft = left && left.open && find(left.i)===root;
+
+    if(connectedTop){ p.el.style.borderTopWidth = '0px'; p.el.style.borderTopColor = 'transparent'; }
+    if(connectedRight){ p.el.style.borderRightWidth = '0px'; p.el.style.borderRightColor = 'transparent'; }
+    if(connectedBottom){ p.el.style.borderBottomWidth = '0px'; p.el.style.borderBottomColor = 'transparent'; }
+    if(connectedLeft){ p.el.style.borderLeftWidth = '0px'; p.el.style.borderLeftColor = 'transparent'; }
   }
 }
 

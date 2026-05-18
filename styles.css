@@ -55,3 +55,11 @@ button {
 .piece.open { outline: 1px solid rgba(255,255,255,.15); }
 .piece.dragging { cursor: grabbing; z-index: 9000 !important; }
 .status-win { color: #57e389; font-weight: 700; }
+
+.piece.merged {
+  border-color: #ffd166;
+  border-width: 3px;
+  border-style: solid;
+  border-radius: 0;
+  outline: none;
+}
