@@ -1,4 +1,4 @@
-import { SLICE_CONFIG, GAMEPLAY_CONFIG, REVEAL_CONFIG } from './game-config.js';
+const { SLICE_CONFIG, GAMEPLAY_CONFIG, REVEAL_CONFIG } = window.GAME_CONFIG;
 
 const ROWS = SLICE_CONFIG.rows;
 const COLS = SLICE_CONFIG.cols;
