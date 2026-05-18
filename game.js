@@ -26,6 +26,10 @@ function neighbors(i){
   return n;
 }
 
+function cellSize(){
+  return { w: board.clientWidth / GRID, h: board.clientHeight / GRID };
+}
+
 async function resolveImage(){
   for(const name of ['images/source.jpg','images/source.png']){
     if(await canLoadImage(name)) return name;
@@ -95,7 +99,10 @@ function bindDrag(piece){
 
   piece.el.addEventListener('pointermove',e=>{
     if(!state.drag) return;
-    const dx=e.clientX-state.drag.startX, dy=e.clientY-state.drag.startY;
+    const { w, h } = cellSize();
+    const rawDx=e.clientX-state.drag.startX, rawDy=e.clientY-state.drag.startY;
+    const dx=Math.round(rawDx / w) * w;
+    const dy=Math.round(rawDy / h) * h;
     state.drag.orig.forEach(o=>{ o.p.x=o.x+dx; o.p.y=o.y+dy; position(o.p); });
   });
 
@@ -111,8 +118,9 @@ function finishDrag(){
     for(const nb of neighbors(a.i)){
       const b=state.pieces[nb];
       if(!b.open || find(a.i)===find(b.i)) continue;
-      const targetDx=(b.c-a.c)*(board.clientWidth/GRID);
-      const targetDy=(b.r-a.r)*(board.clientHeight/GRID);
+      const { w, h } = cellSize();
+      const targetDx=(b.c-a.c)*w;
+      const targetDy=(b.r-a.r)*h;
       const dx=(b.x-a.x)-targetDx;
       const dy=(b.y-a.y)-targetDy;
       if(Math.hypot(dx,dy)<SNAP){
