@@ -1,10 +1,12 @@
-const { SLICE_CONFIG, GAMEPLAY_CONFIG, REVEAL_CONFIG } = window.GAME_CONFIG;
+const { SLICE_CONFIG, GAMEPLAY_CONFIG, REVEAL_CONFIG, ANIMATION_CONFIG } = window.GAME_CONFIG;
 
 const ROWS = SLICE_CONFIG.rows;
 const COLS = SLICE_CONFIG.cols;
 const TOTAL = ROWS * COLS;
 const INITIAL_OPEN = GAMEPLAY_CONFIG.initialOpen;
 const SNAP = GAMEPLAY_CONFIG.snap;
+const MOVE_DURATION_MS = ANIMATION_CONFIG?.moveDurationMs ?? 300;
+const ANIM_ENABLED = ANIMATION_CONFIG?.enabled !== false;
 
 const board = document.getElementById('board');
 const statusEl = document.getElementById('status');
@@ -37,6 +39,10 @@ function getSnapDistance(){
   if(typeof SNAP === 'number' && SNAP > 0) return SNAP;
   const { w, h } = cellSize();
   return Math.max(8, Math.round(Math.min(w, h) * 0.35));
+}
+
+function setAnimationEnabled(enabled){
+  state.pieces.forEach(p=>p.el.classList.toggle('no-anim', !enabled));
 }
 
 function gridCellFromPos(x, y){
@@ -80,6 +86,7 @@ async function init(){
   state.pieces=[]; state.parent=[];
   try { state.imgUrl = await resolveImage(); }
   catch(e){ statusEl.textContent=e.message; return; }
+  document.documentElement.style.setProperty('--move-duration', `${MOVE_DURATION_MS}ms`);
   applySliceConfigToLayout();
   await applyImageAspectToBoard();
 
@@ -103,6 +110,7 @@ async function init(){
     state.pieces.push(piece);
     board.appendChild(el);
   }
+  setAnimationEnabled(ANIM_ENABLED);
 
   const [pairA, pairB] = randomAdjacentPair();
   openPiece(pairA);
@@ -301,6 +309,7 @@ function resolveAnyOverlaps(){
 function bindDrag(piece){
   piece.el.addEventListener('pointerdown',e=>{
     if(!piece.open) return;
+    setAnimationEnabled(false);
     const root=find(piece.i);
     const group = state.pieces.filter(p=>find(p.i)===root);
     state.drag={group,startX:e.clientX,startY:e.clientY,orig:group.map(p=>({p,x:p.x,y:p.y}))};
@@ -347,6 +356,7 @@ function finishDrag(){
   const snapDx = Math.round(rawDx / w) * w;
   const snapDy = Math.round(rawDy / h) * h;
   drag.orig.forEach(o=>{ o.p.x=o.x+snapDx; o.p.y=o.y+snapDy; position(o.p); });
+  setAnimationEnabled(ANIM_ENABLED);
 
   drag.group.forEach(p=>p.el.classList.remove('dragging'));
   const moved = [...drag.group];

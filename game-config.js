@@ -14,4 +14,9 @@ window.GAME_CONFIG = {
     extraPiecesCount: 1,
     onlyNearMergedArea: true,
   },
+
+  ANIMATION_CONFIG: {
+    enabled: true,
+    moveDurationMs: 300,
+  },
 };

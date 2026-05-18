@@ -4,6 +4,7 @@
   --cols: 7;
   --rows: 7;
   --board-aspect: 1 / 1;
+  --move-duration: 300ms;
 }
 
 html {
@@ -57,6 +58,7 @@ button {
   cursor: grab;
   user-select: none;
   touch-action: none;
+  transition: left var(--move-duration) ease, top var(--move-duration) ease, transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
 }
 .piece.hidden {
   background: repeating-linear-gradient(45deg,#3a435a,#3a435a 8px,#2f374b 8px,#2f374b 16px);
@@ -79,4 +81,8 @@ button {
   border-style: solid;
   border-radius: 0;
   outline: none;
+}
+
+.piece.no-anim {
+  transition: none !important;
 }
