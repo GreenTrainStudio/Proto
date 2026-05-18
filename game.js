@@ -306,26 +306,25 @@ function bindDrag(piece){
     if(!state.drag) return;
     const { w, h } = cellSize();
     const rawDx=e.clientX-state.drag.startX, rawDy=e.clientY-state.drag.startY;
-    let dx=Math.round(rawDx / w) * w;
-    let dy=Math.round(rawDy / h) * h;
+    let dCol = Math.round(rawDx / w);
+    let dRow = Math.round(rawDy / h);
 
-    const minX = Math.min(...state.drag.orig.map(o=>o.x));
-    const maxX = Math.max(...state.drag.orig.map(o=>o.x));
-    const minY = Math.min(...state.drag.orig.map(o=>o.y));
-    const maxY = Math.max(...state.drag.orig.map(o=>o.y));
+    const groupCells = state.drag.orig.map(o=>gridCellFromPos(o.x, o.y));
+    const minCol = Math.min(...groupCells.map(c=>c.c));
+    const maxCol = Math.max(...groupCells.map(c=>c.c));
+    const minRow = Math.min(...groupCells.map(c=>c.r));
+    const maxRow = Math.max(...groupCells.map(c=>c.r));
 
-    const minDx = -minX;
-    const maxDx = board.clientWidth - w - maxX;
-    const minDy = -minY;
-    const maxDy = board.clientHeight - h - maxY;
+    const minDeltaCol = -minCol;
+    const maxDeltaCol = (COLS - 1) - maxCol;
+    const minDeltaRow = -minRow;
+    const maxDeltaRow = (ROWS - 1) - maxRow;
 
-    const minDxStep = Math.ceil(minDx / w) * w;
-    const maxDxStep = Math.floor(maxDx / w) * w;
-    const minDyStep = Math.ceil(minDy / h) * h;
-    const maxDyStep = Math.floor(maxDy / h) * h;
+    dCol = Math.max(minDeltaCol, Math.min(maxDeltaCol, dCol));
+    dRow = Math.max(minDeltaRow, Math.min(maxDeltaRow, dRow));
 
-    dx = Math.max(minDxStep, Math.min(maxDxStep, dx));
-    dy = Math.max(minDyStep, Math.min(maxDyStep, dy));
+    const dx = dCol * w;
+    const dy = dRow * h;
 
     state.drag.orig.forEach(o=>{ o.p.x=o.x+dx; o.p.y=o.y+dy; position(o.p); });
   });
