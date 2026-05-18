@@ -33,6 +33,12 @@ function cellSize(){
   return { w: board.clientWidth / COLS, h: board.clientHeight / ROWS };
 }
 
+function getSnapDistance(){
+  if(typeof SNAP === 'number' && SNAP > 0) return SNAP;
+  const { w, h } = cellSize();
+  return Math.max(8, Math.round(Math.min(w, h) * 0.35));
+}
+
 function gridCellFromPos(x, y){
   const { w, h } = cellSize();
   const c = Math.max(0, Math.min(COLS - 1, Math.round(x / w)));
@@ -343,6 +349,7 @@ function finishDrag(){
     return;
   }
   let merged=false;
+  const snapDistance = getSnapDistance();
   const mergedRoots = new Set();
   for(const a of moved){
     for(const nb of neighbors(a.i)){
@@ -353,7 +360,7 @@ function finishDrag(){
       const targetDy=(b.r-a.r)*h;
       const dx=(b.x-a.x)-targetDx;
       const dy=(b.y-a.y)-targetDy;
-      if(Math.hypot(dx,dy)<SNAP){
+      if(Math.hypot(dx,dy)<=snapDistance){
         const rootA=find(a.i);
         const groupA=state.pieces.filter(p=>find(p.i)===rootA);
         groupA.forEach(p=>{ p.x+=dx; p.y+=dy; position(p); });
