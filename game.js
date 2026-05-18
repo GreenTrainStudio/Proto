@@ -50,12 +50,20 @@ async function init(){
   try { state.imgUrl = await resolveImage(); }
   catch(e){ statusEl.textContent=e.message; return; }
 
+  const cellW = board.clientWidth / GRID;
+  const cellH = board.clientHeight / GRID;
+  const shuffledSlots = shuffle([...Array(TOTAL).keys()]);
+
   for(let i=0;i<TOTAL;i++){
     const [r,c]=rc(i);
     const el=document.createElement('div');
     el.className='piece hidden';
     el.dataset.i=i;
-    const piece={i,r,c,open:false,el,x:Math.random()*(board.clientWidth-96),y:Math.random()*(board.clientHeight-96)};
+
+    const slot = shuffledSlots[i];
+    const [slotR, slotC] = rc(slot);
+    const piece={i,r,c,open:false,el,x:slotC*cellW,y:slotR*cellH};
+
     state.parent[i]=i;
     position(piece);
     bindDrag(piece);
