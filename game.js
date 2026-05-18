@@ -139,11 +139,15 @@ function ensureVisiblePieceOnFreeSlot(piece){
 
 function clearPiecesUnderOpenAreas(){
   const occupiedByOpen = new Set(state.pieces.filter(p=>p.open).map(p=>`${p.x}|${p.y}`));
+  const occupiedAll = new Set(state.pieces.filter(p=>p.open).map(p=>`${p.x}|${p.y}`));
   const { w, h } = cellSize();
 
   for(const hidden of state.pieces.filter(p=>!p.open)){
     const key = `${hidden.x}|${hidden.y}`;
-    if(!occupiedByOpen.has(key)) continue;
+    if(!occupiedByOpen.has(key) && !occupiedAll.has(key)) {
+      occupiedAll.add(key);
+      continue;
+    }
 
     let best = null;
     let bestDist = Number.POSITIVE_INFINITY;
@@ -152,7 +156,7 @@ function clearPiecesUnderOpenAreas(){
         const x = c*w;
         const y = r*h;
         const slotKey = `${x}|${y}`;
-        if(occupiedByOpen.has(slotKey)) continue;
+        if(occupiedAll.has(slotKey)) continue;
         const d = Math.hypot(hidden.x-x, hidden.y-y);
         if(d < bestDist){
           bestDist = d;
@@ -164,6 +168,7 @@ function clearPiecesUnderOpenAreas(){
       hidden.x = best.x;
       hidden.y = best.y;
       position(hidden);
+      occupiedAll.add(`${hidden.x}|${hidden.y}`);
     }
   }
 }
