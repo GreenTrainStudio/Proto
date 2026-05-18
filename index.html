@@ -274,7 +274,6 @@
       const targetSet = new Set(targets);
       const incoming = targets.filter(x => !movingSet.has(x));
       const outgoing = moving.filter(x => !targetSet.has(x));
-      if (incoming.length !== outgoing.length) return null;
 
       const byRel = new Map();
       incoming.forEach(pos => {
@@ -282,17 +281,18 @@
         byRel.set(`${p.r - b.r},${p.c - b.c}`, pos);
       });
 
+      const oldBoard = game.board.slice();
       const newBoard = game.board.slice();
+
+      for (let i = 0; i < moving.length; i++) {
+        newBoard[targets[i]] = oldBoard[moving[i]];
+      }
 
       for (const pos of outgoing) {
         const p = indexToRc(pos);
         const src = byRel.get(`${p.r - a.r},${p.c - a.c}`);
         if (src == null) return null;
-        newBoard[pos] = game.board[src];
-      }
-
-      for (let i = 0; i < moving.length; i++) {
-        newBoard[targets[i]] = game.board[moving[i]];
+        newBoard[pos] = oldBoard[src];
       }
 
       game.board = newBoard;
