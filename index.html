@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hidden Neighbor Puzzle</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --card: #1f2937;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --accent: #22c55e;
+      --danger: #ef4444;
+      --hint: #f59e0b;
+      --cell: 72px;
+      --border: #334155;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(circle at 20% 20%, #1e293b 0%, var(--bg) 45%, #020617 100%);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .app {
+      width: min(1180px, 100%);
+      display: grid;
+      grid-template-columns: auto 320px;
+      gap: 20px;
+    }
+    .board-wrap {
+      background: rgba(17, 24, 39, 0.85);
+      border: 1px solid #334155;
+      padding: 12px;
+      border-radius: 14px;
+      box-shadow: 0 18px 45px rgba(0,0,0,0.35);
+    }
+    .board {
+      display: grid;
+      grid-template-columns: repeat(7, var(--cell));
+      grid-template-rows: repeat(7, var(--cell));
+      gap: 0;
+      user-select: none;
+      background: #0b1220;
+      border: 1px solid #1e293b;
+      position: relative;
+    }
+    .cell {
+      width: var(--cell);
+      height: var(--cell);
+      position: relative;
+      border: 1px solid #0b1220;
+      overflow: hidden;
+      cursor: pointer;
+      transition: filter .15s ease;
+    }
+    .cell:hover { filter: brightness(1.12); }
+    .cell.closed {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #111827;
+      color: #cbd5e1;
+      font-size: 30px;
+      font-weight: 800;
+      border-color: #1f2937;
+    }
+    .cell.open {
+      background-size: calc(7 * var(--cell)) calc(7 * var(--cell));
+      background-repeat: no-repeat;
+      border-color: transparent;
+    }
+    .cell.dragging { outline: 2px dashed #60a5fa; z-index: 5; }
+    .cell.hint { box-shadow: inset 0 0 0 4px var(--hint); z-index: 4; }
+    .cell.group-focus { box-shadow: inset 0 0 0 3px #38bdf8; z-index: 4; }
+
+    .group-edge-top { border-top: 3px solid var(--accent) !important; }
+    .group-edge-right { border-right: 3px solid var(--accent) !important; }
+    .group-edge-bottom { border-bottom: 3px solid var(--accent) !important; }
+    .group-edge-left { border-left: 3px solid var(--accent) !important; }
+
+    .panel {
+      background: rgba(17,24,39,0.9);
+      border: 1px solid #334155;
+      border-radius: 14px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      height: fit-content;
+      box-shadow: 0 18px 45px rgba(0,0,0,0.35);
+    }
+    h1 { margin: 0 0 4px 0; font-size: 20px; }
+    .subtitle { margin: 0; color: var(--muted); font-size: 13px; }
+    .stats { display: grid; gap: 8px; }
+    .stat {
+      background: var(--card);
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 10px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+    }
+    .status {
+      min-height: 70px;
+      border-radius: 10px;
+      border: 1px solid #334155;
+      background: #0b1220;
+      padding: 10px;
+      color: #dbeafe;
+      font-size: 14px;
+      line-height: 1.35;
+    }
+    .buttons { display: grid; gap: 10px; }
+    button {
+      background: linear-gradient(145deg, #2563eb, #1d4ed8);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 10px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button.secondary { background: linear-gradient(145deg, #f59e0b, #d97706); }
+    button.reset { background: linear-gradient(145deg, #475569, #334155); }
+    .legend { font-size: 12px; color: var(--muted); }
+    @media (max-width: 1050px) {
+      :root { --cell: 60px; }
+      .app { grid-template-columns: 1fr; }
+      .panel { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="board-wrap">
+      <div id="board" class="board" aria-label="Игровое поле 7 на 7"></div>
+    </section>
+    <aside class="panel">
+      <div>
+        <h1>Hidden Neighbor Puzzle</h1>
+        <p class="subtitle">Открой картинку, соединяя правильных соседей</p>
+      </div>
+      <div class="stats">
+        <div class="stat"><span>Ходы</span><strong id="moves">0</strong></div>
+        <div class="stat"><span>Группы</span><strong id="groups">49</strong></div>
+      </div>
+      <div class="status" id="status"></div>
+      <div class="buttons">
+        <button id="hintBtn" class="secondary">Подсказка</button>
+        <button id="restartBtn" class="reset">Новая игра</button>
+      </div>
+      <p class="legend">Перетащите открытую плитку (или целую слитую группу) в соседнюю клетку.</p>
+    </aside>
+  </main>
+
+  <script>
+    const IMG = 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1400&q=80';
+    const SIZE = 7;
+    const TOTAL = SIZE * SIZE;
+
+    const el = {
+      board: document.getElementById('board'),
+      moves: document.getElementById('moves'),
+      groups: document.getElementById('groups'),
+      status: document.getElementById('status'),
+      hintBtn: document.getElementById('hintBtn'),
+      restartBtn: document.getElementById('restartBtn'),
+    };
+
+    let game;
+    let dragState = null;
+    let hintCells = new Set();
+
+    const shuffle = (arr) => {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    };
+
+    const i2rc = (i) => [Math.floor(i / SIZE), i % SIZE];
+    const rc2i = (r, c) => r * SIZE + c;
+    const inBounds = (r, c) => r >= 0 && r < SIZE && c >= 0 && c < SIZE;
+    const neighbors = (i) => {
+      const [r, c] = i2rc(i);
+      return [[r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]].filter(([nr, nc]) => inBounds(nr, nc)).map(([nr, nc]) => rc2i(nr, nc));
+    };
+
+    function ensureAssigned(pos) {
+      if (game.revealed[pos] && game.board[pos] === null && game.pool.length) {
+        const idx = Math.floor(Math.random() * game.pool.length);
+        game.board[pos] = game.pool.splice(idx, 1)[0];
+      }
+    }
+
+    function makeGame() {
+      game = {
+        board: Array(TOTAL).fill(null),
+        revealed: Array(TOTAL).fill(false),
+        pool: shuffle([...Array(TOTAL).keys()]),
+        pieceGroup: [...Array(TOTAL).keys()],
+        completedEdges: new Set(),
+        moves: 0,
+        message: 'Открой картинку, соединяя правильных соседей',
+      };
+
+      const starts = shuffle([...Array(TOTAL).keys()]).slice(0, 5);
+      starts.forEach((p) => {
+        game.revealed[p] = true;
+        ensureAssigned(p);
+      });
+
+      if (!starts.some((p) => neighbors(p).some((n) => game.revealed[n]))) {
+        const a = starts[0];
+        const b = neighbors(a)[0];
+        game.revealed[b] = true;
+        ensureAssigned(b);
+      }
+
+      ensureInitialMerge();
+      updateStatusMessage();
+      render();
+    }
+
+    function isTrueNeighbors(p1, p2, pos1, pos2) {
+      const [pr1, pc1] = i2rc(p1);
+      const [pr2, pc2] = i2rc(p2);
+      const [r1, c1] = i2rc(pos1);
+      const [r2, c2] = i2rc(pos2);
+      return pr2 - pr1 === r2 - r1 && pc2 - pc1 === c2 - c1;
+    }
+
+    function canMerge(posA, posB) {
+      if (!game.revealed[posA] || !game.revealed[posB]) return false;
+      const pieceA = game.board[posA];
+      const pieceB = game.board[posB];
+      if (pieceA === null || pieceB === null) return false;
+      if (game.pieceGroup[pieceA] === game.pieceGroup[pieceB]) return false;
+      if (!neighbors(posA).includes(posB)) return false;
+      return isTrueNeighbors(pieceA, pieceB, posA, posB);
+    }
+
+    function mergeIfNeeded() {
+      let merged = 0;
+      for (let i = 0; i < TOTAL; i++) {
+        if (!game.revealed[i] || game.board[i] === null) continue;
+        for (const n of neighbors(i)) {
+          if (i > n) continue;
+          const key = `${Math.min(i,n)}-${Math.max(i,n)}`;
+          if (!canMerge(i, n) || game.completedEdges.has(key)) continue;
+          const a = game.board[i], b = game.board[n];
+          const ga = game.pieceGroup[a], gb = game.pieceGroup[b];
+          for (let p = 0; p < TOTAL; p++) if (game.pieceGroup[p] === gb) game.pieceGroup[p] = ga;
+          game.completedEdges.add(key);
+          merged++;
+        }
+      }
+      if (merged > 0) {
+        revealAroundMerged();
+        game.message = `Правильное объединение: ${merged}`;
+      } else {
+        game.message = 'Пока нет правильного объединения';
+      }
+      if (countGroups() === 1) game.message = 'Пазл собран!';
+      return merged;
+    }
+
+    function revealAroundMerged() {
+      const openTargets = new Set();
+      for (let pos = 0; pos < TOTAL; pos++) {
+        if (!game.revealed[pos]) continue;
+        for (const n of neighbors(pos)) if (!game.revealed[n]) openTargets.add(n);
+      }
+      shuffle([...openTargets]).slice(0, Math.max(2, Math.floor(openTargets.size / 3))).forEach((p) => {
+        game.revealed[p] = true;
+        ensureAssigned(p);
+      });
+    }
+
+    function findHintPair() {
+      for (let i = 0; i < TOTAL; i++) {
+        if (!game.revealed[i] || game.board[i] === null) continue;
+        for (const n of neighbors(i)) if (i < n && canMerge(i, n)) return [i, n];
+      }
+      return null;
+    }
+
+    function ensureInitialMerge() { if (!findHintPair()) ensureAvailablePair(); }
+
+    function ensureAvailablePair() {
+      let pair = findHintPair();
+      if (pair) return pair;
+      const open = [...Array(TOTAL).keys()].filter((p) => game.revealed[p]);
+      for (const a of open) {
+        for (const b of neighbors(a)) {
+          if (!game.revealed[b]) continue;
+          const pa = game.board[a], pb = game.board[b];
+          if (pa === null || pb === null) continue;
+          const [ar, ac] = i2rc(a);
+          const [br, bc] = i2rc(b);
+          const needR = br - ar, needC = bc - ac;
+          const [r, c] = i2rc(pa);
+          const targetR = r + needR, targetC = c + needC;
+          if (!inBounds(targetR, targetC)) continue;
+          const wanted = rc2i(targetR, targetC);
+          const fromPos = game.board.indexOf(wanted);
+          if (fromPos === -1 || !game.revealed[fromPos]) continue;
+          [game.board[b], game.board[fromPos]] = [game.board[fromPos], game.board[b]];
+          pair = findHintPair();
+          if (pair) return pair;
+        }
+      }
+      return null;
+    }
+
+    function groupCellsById(groupId) {
+      const cells = [];
+      for (let pos = 0; pos < TOTAL; pos++) {
+        const piece = game.board[pos];
+        if (piece !== null && game.pieceGroup[piece] === groupId) cells.push(pos);
+      }
+      return cells;
+    }
+
+    function tryMove(fromPos, toPos) {
+      if (!game.revealed[fromPos] || !game.revealed[toPos] || fromPos === toPos) return false;
+      const movingPiece = game.board[fromPos];
+      if (movingPiece === null) return false;
+      const groupId = game.pieceGroup[movingPiece];
+      const cells = groupCellsById(groupId);
+      const [fr, fc] = i2rc(fromPos), [tr, tc] = i2rc(toPos);
+      const dr = tr - fr, dc = tc - fc;
+      if (Math.abs(dr) + Math.abs(dc) !== 1) return false;
+
+      const targetMap = new Map();
+      for (const c of cells) {
+        const [r, col] = i2rc(c);
+        const nr = r + dr, nc = col + dc;
+        if (!inBounds(nr, nc)) return false;
+        targetMap.set(c, rc2i(nr, nc));
+      }
+
+      if (cells.length === 1) {
+        [game.board[fromPos], game.board[toPos]] = [game.board[toPos], game.board[fromPos]];
+      } else {
+        for (const [src, dst] of targetMap.entries()) {
+          const piece = game.board[dst];
+          if (piece !== null && game.pieceGroup[piece] !== groupId) return false;
+        }
+        const snapshot = [...game.board];
+        for (const c of cells) game.board[c] = null;
+        for (const [src, dst] of targetMap.entries()) game.board[dst] = snapshot[src];
+      }
+
+      game.moves++;
+      hintCells.clear();
+      const merged = mergeIfNeeded();
+      if (!merged) ensureAvailablePair();
+      updateStatusMessage();
+      render();
+      return true;
+    }
+
+    function countGroups() {
+      const set = new Set();
+      for (let i = 0; i < TOTAL; i++) {
+        const piece = game.board[i];
+        if (piece !== null) set.add(game.pieceGroup[piece]);
+      }
+      return set.size;
+    }
+
+    function updateStatusMessage() {
+      if (countGroups() === 1) game.message = 'Пазл собран!';
+    }
+
+    function onCellClick(pos) {
+      if (!game.revealed[pos]) {
+        game.revealed[pos] = true;
+        ensureAssigned(pos);
+        const merged = mergeIfNeeded();
+        if (!merged) ensureAvailablePair();
+        updateStatusMessage();
+        render();
+      }
+    }
+
+    function render() {
+      el.moves.textContent = game.moves;
+      el.groups.textContent = countGroups();
+      el.status.textContent = game.message;
+
+      el.board.innerHTML = '';
+      for (let pos = 0; pos < TOTAL; pos++) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.dataset.pos = String(pos);
+
+        if (!game.revealed[pos]) {
+          cell.classList.add('closed');
+          cell.textContent = '?';
+        } else {
+          const piece = game.board[pos];
+          const [pr, pc] = i2rc(piece);
+          cell.classList.add('open');
+          cell.style.backgroundImage = `url(${IMG})`;
+          cell.style.backgroundPosition = `${-pc * 72}px ${-pr * 72}px`;
+          cell.draggable = true;
+
+          const gid = game.pieceGroup[piece];
+          const same = (targetPos) => {
+            const p = game.board[targetPos];
+            return p !== null && game.pieceGroup[p] === gid;
+          };
+          const [r, c] = i2rc(pos);
+          if (!inBounds(r-1,c) || !same(rc2i(r-1,c))) cell.classList.add('group-edge-top');
+          if (!inBounds(r+1,c) || !same(rc2i(r+1,c))) cell.classList.add('group-edge-bottom');
+          if (!inBounds(r,c-1) || !same(rc2i(r,c-1))) cell.classList.add('group-edge-left');
+          if (!inBounds(r,c+1) || !same(rc2i(r,c+1))) cell.classList.add('group-edge-right');
+        }
+
+        if (hintCells.has(pos)) cell.classList.add('hint');
+        if (dragState && dragState.groupCells.has(pos)) cell.classList.add('group-focus');
+
+        cell.addEventListener('click', () => onCellClick(pos));
+        cell.addEventListener('dragstart', (e) => {
+          if (!game.revealed[pos] || game.board[pos] === null) return e.preventDefault();
+          const gid = game.pieceGroup[game.board[pos]];
+          dragState = { fromPos: pos, groupCells: new Set(groupCellsById(gid)) };
+          e.dataTransfer.effectAllowed = 'move';
+          setTimeout(() => cell.classList.add('dragging'), 0);
+          render();
+        });
+        cell.addEventListener('dragend', () => {
+          dragState = null;
+          render();
+        });
+        cell.addEventListener('dragover', (e) => e.preventDefault());
+        cell.addEventListener('drop', (e) => {
+          e.preventDefault();
+          if (!dragState) return;
+          tryMove(dragState.fromPos, pos);
+          dragState = null;
+          render();
+        });
+
+        el.board.appendChild(cell);
+      }
+    }
+
+    el.hintBtn.addEventListener('click', () => {
+      let pair = findHintPair();
+      if (!pair) pair = ensureAvailablePair();
+      hintCells.clear();
+      if (pair) {
+        hintCells.add(pair[0]);
+        hintCells.add(pair[1]);
+        game.message = `Подсказка: попробуйте соединить выделенную пару`;
+      } else {
+        game.message = 'Пока нет правильного объединения';
+      }
+      render();
+    });
+
+    el.restartBtn.addEventListener('click', () => {
+      hintCells.clear();
+      dragState = null;
+      makeGame();
+    });
+
+    makeGame();
+  </script>
+</body>
+</html>
