@@ -2,6 +2,11 @@ const GRID = 7;
 const TOTAL = GRID * GRID;
 const INITIAL_OPEN = 3;
 const SNAP = 18;
+const REVEAL_CONFIG = {
+  mainPiecesCount: 1,
+  extraPiecesCount: 1,
+  onlyNearMergedArea: true,
+};
 
 const board = document.getElementById('board');
 const statusEl = document.getElementById('status');
@@ -130,6 +135,7 @@ function finishDrag(){
     return;
   }
   let merged=false;
+  const mergedRoots = new Set();
   for(const a of moved){
     for(const nb of neighbors(a.i)){
       const b=state.pieces[nb];
@@ -144,12 +150,13 @@ function finishDrag(){
         const groupA=state.pieces.filter(p=>find(p.i)===rootA);
         groupA.forEach(p=>{ p.x+=dx; p.y+=dy; position(p); });
         union(a.i,b.i);
+        mergedRoots.add(find(a.i));
         merged=true;
       }
     }
   }
   if(merged){
-    revealAfterMerge();
+    revealAfterMerge(mergedRoots);
     checkWin();
   }
 }
@@ -197,16 +204,23 @@ function applyGridSwapIfNeeded(drag){
   return true;
 }
 
-function revealAfterMerge(){
-  const roots=[...new Set(state.pieces.filter(p=>p.open).map(p=>find(p.i)))];
+function revealAfterMerge(mergedRoots = new Set()){
+  const roots = REVEAL_CONFIG.onlyNearMergedArea
+    ? [...mergedRoots]
+    : [...new Set(state.pieces.filter(p=>p.open).map(p=>find(p.i)))];
+
   for(const root of roots){
     const group=state.pieces.filter(p=>find(p.i)===root && p.open);
     const frontier=[];
     group.forEach(p=>neighbors(p.i).forEach(n=>{ if(!state.pieces[n].open) frontier.push(n); }));
-    const uniq=[...new Set(frontier)];
+    const uniq=shuffle([...new Set(frontier)]);
     if(uniq.length){
-      openPiece(uniq[Math.floor(Math.random()*uniq.length)]);
-      if(Math.random()<0.4 && uniq.length>1) openPiece(uniq[Math.floor(Math.random()*uniq.length)]);
+      const mainToOpen = Math.min(REVEAL_CONFIG.mainPiecesCount, uniq.length);
+      for(let i=0;i<mainToOpen;i++) openPiece(uniq[i]);
+
+      const remaining = uniq.slice(mainToOpen);
+      const extraToOpen = Math.min(REVEAL_CONFIG.extraPiecesCount, remaining.length);
+      for(let i=0;i<extraToOpen;i++) openPiece(remaining[i]);
     }
   }
 }
