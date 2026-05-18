@@ -137,10 +137,13 @@ function ensureVisiblePieceOnFreeSlot(piece){
   }
 }
 
-function clearPiecesUnderOpenAreas(){
+function clearPiecesUnderOpenAreas(preferredSlots = []){
   const occupiedByOpen = new Set(state.pieces.filter(p=>p.open).map(p=>`${p.x}|${p.y}`));
   const occupiedAll = new Set(state.pieces.filter(p=>p.open).map(p=>`${p.x}|${p.y}`));
   const { w, h } = cellSize();
+  const preferredQueue = preferredSlots
+    .map(s=>({x:s.x,y:s.y,key:`${s.x}|${s.y}`}))
+    .filter(s=>!occupiedAll.has(s.key));
 
   for(const hidden of state.pieces.filter(p=>!p.open)){
     const key = `${hidden.x}|${hidden.y}`;
@@ -148,6 +151,20 @@ function clearPiecesUnderOpenAreas(){
       occupiedAll.add(key);
       continue;
     }
+
+    let placedInPreferred = false;
+    while(preferredQueue.length){
+      const slot = preferredQueue.shift();
+      if(!occupiedAll.has(slot.key)){
+        hidden.x = slot.x;
+        hidden.y = slot.y;
+        position(hidden);
+        occupiedAll.add(slot.key);
+        placedInPreferred = true;
+        break;
+      }
+    }
+    if(placedInPreferred) continue;
 
     let best = null;
     let bestDist = Number.POSITIVE_INFINITY;
@@ -226,7 +243,7 @@ function finishDrag(){
     }
   }
   if(merged){
-    clearPiecesUnderOpenAreas();
+    clearPiecesUnderOpenAreas(drag.orig.map(o=>({x:o.x,y:o.y})));
     revealAfterMerge(mergedRoots);
     refreshMergedVisuals();
     checkWin();
