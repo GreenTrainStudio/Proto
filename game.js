@@ -313,8 +313,22 @@ function bindDrag(piece){
     if(!state.drag) return;
     const { w, h } = cellSize();
     const rawDx=e.clientX-state.drag.startX, rawDy=e.clientY-state.drag.startY;
-    const dx=Math.round(rawDx / w) * w;
-    const dy=Math.round(rawDy / h) * h;
+    let dx=Math.round(rawDx / w) * w;
+    let dy=Math.round(rawDy / h) * h;
+
+    const minX = Math.min(...state.drag.orig.map(o=>o.x));
+    const maxX = Math.max(...state.drag.orig.map(o=>o.x));
+    const minY = Math.min(...state.drag.orig.map(o=>o.y));
+    const maxY = Math.max(...state.drag.orig.map(o=>o.y));
+
+    const minDx = -minX;
+    const maxDx = board.clientWidth - w - maxX;
+    const minDy = -minY;
+    const maxDy = board.clientHeight - h - maxY;
+
+    dx = Math.max(minDx, Math.min(maxDx, dx));
+    dy = Math.max(minDy, Math.min(maxDy, dy));
+
     state.drag.orig.forEach(o=>{ o.p.x=o.x+dx; o.p.y=o.y+dy; position(o.p); });
   });
 
