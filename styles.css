@@ -1,0 +1,57 @@
+:root {
+  --board-size: min(88vw, 88vh, 760px);
+  --cell: calc(var(--board-size) / 7);
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background: #12141a;
+  color: #f5f6f8;
+}
+.app {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  justify-items: center;
+}
+header { text-align: center; }
+code { background: #222938; padding: 2px 6px; border-radius: 6px; }
+.controls { display: flex; gap: 12px; align-items: center; }
+button {
+  border: none; border-radius: 8px; padding: 10px 14px;
+  background: #4f7bff; color: #fff; cursor: pointer; font-weight: 600;
+}
+.board-wrap {
+  width: var(--board-size);
+  height: var(--board-size);
+  border: 2px solid #303a52;
+  border-radius: 12px;
+  background: radial-gradient(circle at 20% 20%, #1f2533, #171b26);
+  overflow: hidden;
+}
+.board {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+.piece {
+  position: absolute;
+  width: var(--cell);
+  height: var(--cell);
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 8px;
+  background-size: 700% 700%;
+  box-shadow: 0 2px 8px rgba(0,0,0,.4);
+  cursor: grab;
+  user-select: none;
+}
+.piece.hidden {
+  background: repeating-linear-gradient(45deg,#3a435a,#3a435a 8px,#2f374b 8px,#2f374b 16px);
+  border-color: rgba(255,255,255,.06);
+  cursor: default;
+}
+.piece.open { outline: 1px solid rgba(255,255,255,.15); }
+.piece.dragging { cursor: grabbing; z-index: 9000 !important; }
+.status-win { color: #57e389; font-weight: 700; }

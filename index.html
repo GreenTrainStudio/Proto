@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jigsaw Solitaire Puzzle 7x7</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="app">
+    <header>
+      <h1>Jigsaw Solitaire Puzzle (7×7)</h1>
+      <p>Положите изображение в <code>images/source.jpg</code> (или source.png), затем нажмите «Новая игра».</p>
+    </header>
+
+    <section class="controls">
+      <button id="newGameBtn">Новая игра</button>
+      <span id="status"></span>
+    </section>
+
+    <section class="board-wrap">
+      <div id="board" class="board"></div>
+    </section>
+  </main>
+
+  <script src="game.js"></script>
+</body>
+</html>
