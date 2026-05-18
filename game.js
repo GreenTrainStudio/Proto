@@ -110,9 +110,14 @@ function bindDrag(piece){
 }
 
 function finishDrag(){
-  state.drag.group.forEach(p=>p.el.classList.remove('dragging'));
-  const moved = [...state.drag.group];
+  const drag = state.drag;
+  drag.group.forEach(p=>p.el.classList.remove('dragging'));
+  const moved = [...drag.group];
+  const swapped = applyGridSwapIfNeeded(drag);
   state.drag=null;
+  if(!swapped){
+    return;
+  }
   let merged=false;
   for(const a of moved){
     for(const nb of neighbors(a.i)){
@@ -136,6 +141,49 @@ function finishDrag(){
     revealAfterMerge();
     checkWin();
   }
+}
+
+function applyGridSwapIfNeeded(drag){
+  const movedSet = new Set(drag.group.map(p=>p.i));
+  const origById = new Map(drag.orig.map(o=>[o.p.i,{x:o.x,y:o.y}]));
+  const dx = drag.group[0].x - drag.orig[0].x;
+  const dy = drag.group[0].y - drag.orig[0].y;
+
+  if(dx===0 && dy===0){
+    return true;
+  }
+
+  const collided = new Set();
+  for(const p of drag.group){
+    const hit = state.pieces.find(other=>!movedSet.has(other.i) && other.x===p.x && other.y===p.y);
+    if(hit) collided.add(hit);
+  }
+
+  if(!collided.size){
+    return true;
+  }
+
+  const occupiedByOthers = new Set(
+    state.pieces
+      .filter(p=>!movedSet.has(p.i) && !collided.has(p))
+      .map(p=>`${p.x}|${p.y}`)
+  );
+
+  for(const p of collided){
+    const targetKey = `${p.x-dx}|${p.y-dy}`;
+    const movedOrigin = [...origById.values()].some(pos=>pos.x===p.x-dx && pos.y===p.y-dy);
+    if(!movedOrigin && occupiedByOthers.has(targetKey)){
+      drag.orig.forEach(o=>{ o.p.x=o.x; o.p.y=o.y; position(o.p); });
+      return false;
+    }
+  }
+
+  collided.forEach(p=>{
+    p.x -= dx;
+    p.y -= dy;
+    position(p);
+  });
+  return true;
 }
 
 function revealAfterMerge(){
