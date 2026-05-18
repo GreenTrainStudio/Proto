@@ -81,10 +81,11 @@
         const lfSame=inBounds(me.r,me.c-1)&&g.pieceGroup[g.board[rcToIndex(me.r,me.c-1)]]===groupId;
         const rtSame=inBounds(me.r,me.c+1)&&g.pieceGroup[g.board[rcToIndex(me.r,me.c+1)]]===groupId;
         const up=!upSame, dn=!dnSame, lf=!lfSame, rt=!rtSame;
-        tile.style.borderTopColor=up?'#67e8f9':'transparent';
-        tile.style.borderBottomColor=dn?'#67e8f9':'transparent';
-        tile.style.borderLeftColor=lf?'#67e8f9':'transparent';
-        tile.style.borderRightColor=rt?'#67e8f9':'transparent';
+        const frameColor = groupSize > 1 ? '#67e8f9' : 'rgba(255,255,255,.25)';
+        tile.style.borderTopColor=up?frameColor:'transparent';
+        tile.style.borderBottomColor=dn?frameColor:'transparent';
+        tile.style.borderLeftColor=lf?frameColor:'transparent';
+        tile.style.borderRightColor=rt?frameColor:'transparent';
         tile.style.borderTopLeftRadius='0'; tile.style.borderTopRightRadius='0'; tile.style.borderBottomLeftRadius='0'; tile.style.borderBottomRightRadius='0';
       }
       tile.addEventListener('dragstart',e=>{state.dragFrom=pos; state.dragGroupId=groupId; e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',String(pos));});
