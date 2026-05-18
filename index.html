@@ -75,10 +75,17 @@
     g.board.forEach((piece,pos)=>{const tile=document.createElement('div'); tile.className='tile'; tile.draggable=!isWon(); if(isWon()) tile.style.cursor='default';
       const groupId=g.pieceGroup[piece],groupSize=g.pieceGroup.reduce((n,id)=>n+(id===groupId?1:0),0),isCorrect=piece===pos;
       if(groupSize>1) tile.classList.add('group'); if(isCorrect) tile.classList.add('correct'); if(state.dragGroupId!==null&&state.dragGroupId===groupId) tile.classList.add('dragging-group');
-      if(g.revealed[pos]){const me=indexToRC(pos); const up=!neighbors(pos).includes(rcToIndex(me.r-1,me.c))||!inBounds(me.r-1,me.c)||g.pieceGroup[g.board[rcToIndex(me.r-1,me.c)]]!==groupId;
-        const dn=!inBounds(me.r+1,me.c)||g.pieceGroup[g.board[rcToIndex(me.r+1,me.c)]]!==groupId;
-        const lf=!inBounds(me.r,me.c-1)||g.pieceGroup[g.board[rcToIndex(me.r,me.c-1)]]!==groupId;
-        const rt=!inBounds(me.r,me.c+1)||g.pieceGroup[g.board[rcToIndex(me.r,me.c+1)]]!==groupId;
+      if(groupSize<=1){ tile.style.borderColor=isCorrect?'#34d399':'rgba(255,255,255,.3)'; }
+      if(g.revealed[pos]){const me=indexToRC(pos);
+        const upSame=inBounds(me.r-1,me.c)&&g.pieceGroup[g.board[rcToIndex(me.r-1,me.c)]]===groupId;
+        const dnSame=inBounds(me.r+1,me.c)&&g.pieceGroup[g.board[rcToIndex(me.r+1,me.c)]]===groupId;
+        const lfSame=inBounds(me.r,me.c-1)&&g.pieceGroup[g.board[rcToIndex(me.r,me.c-1)]]===groupId;
+        const rtSame=inBounds(me.r,me.c+1)&&g.pieceGroup[g.board[rcToIndex(me.r,me.c+1)]]===groupId;
+        const up=!upSame, dn=!dnSame, lf=!lfSame, rt=!rtSame;
+        tile.style.borderTopColor=up?'#67e8f9':'transparent';
+        tile.style.borderBottomColor=dn?'#67e8f9':'transparent';
+        tile.style.borderLeftColor=lf?'#67e8f9':'transparent';
+        tile.style.borderRightColor=rt?'#67e8f9':'transparent';
         tile.style.borderTopLeftRadius=(up||lf)?'10px':'0'; tile.style.borderTopRightRadius=(up||rt)?'10px':'0'; tile.style.borderBottomLeftRadius=(dn||lf)?'10px':'0'; tile.style.borderBottomRightRadius=(dn||rt)?'10px':'0';
       }
       tile.addEventListener('dragstart',e=>{state.dragFrom=pos; state.dragGroupId=groupId; e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',String(pos));});
