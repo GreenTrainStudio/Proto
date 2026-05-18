@@ -120,6 +120,7 @@ function openPiece(i){
   ensureVisiblePieceOnFreeSlot(p);
   p.open=true; p.el.classList.remove('hidden'); p.el.classList.add('open');
   p.el.style.backgroundImage=`url(${state.imgUrl})`;
+  p.el.style.backgroundSize=`${COLS * 100}% ${ROWS * 100}%`;
   const xDen = Math.max(COLS - 1, 1);
   const yDen = Math.max(ROWS - 1, 1);
   p.el.style.backgroundPosition=`${(p.c/xDen)*100}% ${(p.r/yDen)*100}%`;
