@@ -312,8 +312,8 @@ function bindDrag(piece){
     if(!state.drag) return;
     const { w, h } = cellSize();
     const rawDx=e.clientX-state.drag.startX, rawDy=e.clientY-state.drag.startY;
-    let dCol = Math.round(rawDx / w);
-    let dRow = Math.round(rawDy / h);
+    let dx = rawDx;
+    let dy = rawDy;
 
     const groupCells = state.drag.orig.map(o=>gridCellFromPos(o.x, o.y));
     const minCol = Math.min(...groupCells.map(c=>c.c));
@@ -326,11 +326,12 @@ function bindDrag(piece){
     const minDeltaRow = -minRow;
     const maxDeltaRow = (ROWS - 1) - maxRow;
 
-    dCol = Math.max(minDeltaCol, Math.min(maxDeltaCol, dCol));
-    dRow = Math.max(minDeltaRow, Math.min(maxDeltaRow, dRow));
-
-    const dx = dCol * w;
-    const dy = dRow * h;
+    const minDx = minDeltaCol * w;
+    const maxDx = maxDeltaCol * w;
+    const minDy = minDeltaRow * h;
+    const maxDy = maxDeltaRow * h;
+    dx = Math.max(minDx, Math.min(maxDx, dx));
+    dy = Math.max(minDy, Math.min(maxDy, dy));
 
     state.drag.orig.forEach(o=>{ o.p.x=o.x+dx; o.p.y=o.y+dy; position(o.p); });
   });
@@ -340,6 +341,13 @@ function bindDrag(piece){
 
 function finishDrag(){
   const drag = state.drag;
+  const { w, h } = cellSize();
+  const rawDx = drag.group[0].x - drag.orig[0].x;
+  const rawDy = drag.group[0].y - drag.orig[0].y;
+  const snapDx = Math.round(rawDx / w) * w;
+  const snapDy = Math.round(rawDy / h) * h;
+  drag.orig.forEach(o=>{ o.p.x=o.x+snapDx; o.p.y=o.y+snapDy; position(o.p); });
+
   drag.group.forEach(p=>p.el.classList.remove('dragging'));
   const moved = [...drag.group];
   const swapped = applyGridSwapIfNeeded(drag);
