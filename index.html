@@ -354,6 +354,10 @@
 
     const tileBelongsToHint = pos => state.hint && state.hint.includes(pos);
 
+    const ensureMergeOpportunity = game => {
+      if (!isWon(game) && !findHint(game)) forceHint(game);
+    };
+
     const updateStatus = () => {
       dom.message.textContent = state.game.message;
       dom.moves.textContent = state.game.moves;
@@ -362,6 +366,7 @@
 
     const render = () => {
       const game = state.game;
+      ensureMergeOpportunity(game);
       updateStatus();
       dom.board.innerHTML = '';
 
@@ -453,6 +458,7 @@
     };
 
     const onHintClick = () => {
+      ensureMergeOpportunity(state.game);
       const hint = findHint(state.game);
       state.hint = hint;
       state.game.message = hint ? 'Подсказка: попробуйте соединить подсвеченные кусочки' : 'Подходящая пара будет создана после следующего хода';
