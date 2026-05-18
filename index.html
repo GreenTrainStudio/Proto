@@ -1,107 +1,41 @@
 <!doctype html>
-<html lang="ru">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hidden Neighbor Puzzle (HTML5)</title>
-  <style>
-    * { box-sizing: border-box; }
-    body { margin:0; min-height:100vh; font-family:Inter,system-ui,sans-serif; color:#0f172a; background:linear-gradient(135deg,#dbeafe,#e0e7ff,#ede9fe); padding:16px; }
-    .wrap { max-width:1180px; margin:0 auto; display:grid; grid-template-columns:1fr 320px; gap:16px; }
-    .card { background:rgba(255,255,255,.86); border:1px solid rgba(255,255,255,.72); border-radius:18px; box-shadow:0 10px 30px rgba(15,23,42,.15); padding:18px; }
-    .header { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:12px; }
-    h1 { margin:0; font-size:28px; }
-    .sub { color:#64748b; font-size:14px; margin-top:4px; }
-    button { border:0; border-radius:0; padding:10px 14px; background:#0f172a; color:#fff; font-weight:700; cursor:pointer; }
-    .board { width:min(700px,100%); aspect-ratio:1; margin:0 auto; border-radius:0; background:#1e293b; padding:8px; display:grid; grid-template-columns:repeat(7,1fr); gap:0; }
-    .tile { position:relative; border:2px solid rgba(255,255,255,.3); border-radius:0; overflow:hidden; cursor:grab; user-select:none; }
-    .tile:active { cursor:grabbing; }
-    .tile.hidden { background:linear-gradient(135deg,#334155,#0f172a); display:grid; place-items:center; }
-    .tile.group { border-color:#67e8f9; box-shadow:0 0 0 2px rgba(103,232,249,.28); }
-        .tile.dragging-group { opacity:.62; }
-    .q { color:rgba(255,255,255,.9); font-weight:700; font-size:14px; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.2); border-radius:8px; padding:4px 8px; }
-    .num,.grp { position:absolute; font-size:10px; font-weight:700; color:#fff; border-radius:6px; padding:2px 6px; }
-    .num { top:4px; left:4px; background:rgba(0,0,0,.45); }
-    .grp { right:4px; bottom:4px; background:rgba(6,182,212,.9); }
-    .small { font-size:12px; color:#64748b; }
-    .big { font-size:28px; font-weight:800; }
-    .stats { margin:14px 0; display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-    .pill,.box { background:#e2e8f0; border-radius:14px; padding:12px; }
-    @media (max-width:980px){ .wrap{grid-template-columns:1fr;} }
-  </style>
-</head>
-<body>
-<div class="wrap">
-  <section class="card">
-    <div class="header"><div><h1>Hidden Neighbor Puzzle</h1><div class="sub">7x7 пазл: drag-and-drop, объединения и монолиты</div></div><button id="newGame">Новая игра</button></div>
-    <div id="board" class="board"></div>
-  </section>
-  <aside class="card">
-    <div class="small" style="text-transform:uppercase;font-weight:700;letter-spacing:.08em;">Статус</div>
-    <div id="message" style="font-size:22px;font-weight:800;margin-top:4px;">...</div>
-    <div class="stats"><div class="pill"><div class="small">Ходы</div><div id="moves" class="big">0</div></div><div class="pill"><div class="small">Группы</div><div id="groups" class="big">0</div></div></div>
-    <div class="box"><b>Как играть:</b> перетаскивай кусочек или уже слитый монолит. У монолита общая рамка.</div>
-  </aside>
-</div>
+<html lang="ru"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Hidden Neighbor Puzzle</title>
+<style>*{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:Inter,system-ui,sans-serif;color:#0f172a;background:linear-gradient(135deg,#dbeafe,#e0e7ff,#ede9fe);padding:16px}.wrap{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:1fr 320px;gap:16px}.card{background:rgba(255,255,255,.86);border:1px solid rgba(255,255,255,.72);border-radius:18px;box-shadow:0 10px 30px rgba(15,23,42,.15);padding:18px}.header{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}h1{margin:0;font-size:28px}.sub{color:#64748b;font-size:14px;margin-top:4px}button{border:0;border-radius:10px;padding:10px 14px;background:#0f172a;color:#fff;font-weight:700;cursor:pointer}.board{width:min(700px,100%);aspect-ratio:1;margin:0 auto;border-radius:0;background:#1e293b;padding:8px;display:grid;grid-template-columns:repeat(7,1fr);gap:0}.tile{position:relative;border:2px solid rgba(255,255,255,.25);border-radius:0;overflow:hidden;cursor:grab;user-select:none}.tile:active{cursor:grabbing}.tile.hidden{background:linear-gradient(135deg,#334155,#0f172a);display:grid;place-items:center}.tile.group{box-shadow:0 0 0 2px rgba(103,232,249,.28)}.tile.dragging-group{opacity:.62}.q{color:rgba(255,255,255,.9);font-weight:700;font-size:14px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:4px 8px}.num,.grp{position:absolute;font-size:10px;font-weight:700;color:#fff;border-radius:6px;padding:2px 6px}.num{top:4px;left:4px;background:rgba(0,0,0,.45)}.grp{right:4px;bottom:4px;background:rgba(6,182,212,.9)}.small{font-size:12px;color:#64748b}.big{font-size:28px;font-weight:800}.stats{margin:14px 0;display:grid;grid-template-columns:1fr 1fr;gap:10px}.pill,.box{background:#e2e8f0;border-radius:14px;padding:12px}@media (max-width:980px){.wrap{grid-template-columns:1fr}}</style>
+</head><body><div class="wrap"><section class="card"><div class="header"><div><h1>Hidden Neighbor Puzzle</h1><div class="sub">Кусочки определяются только при открытии</div></div><button id="newGame">Новая игра</button></div><div id="board" class="board"></div></section><aside class="card"><div class="small" style="text-transform:uppercase;font-weight:700;letter-spacing:.08em">Статус</div><div id="message" style="font-size:22px;font-weight:800;margin-top:4px">...</div><div class="stats"><div class="pill"><div class="small">Ходы</div><div id="moves" class="big">0</div></div><div class="pill"><div class="small">Группы</div><div id="groups" class="big">0</div></div></div><div class="box">Неоткрытая клетка не имеет назначенного кусочка до открытия.</div></aside></div>
 <script>
-(() => {
-  const SIZE=7,TOTAL=49,IMG='https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1000&q=80';
-  const state={game:null,dragFrom:null,dragGroupId:null};
-  const $board=document.getElementById('board'),$msg=document.getElementById('message'),$moves=document.getElementById('moves'),$groups=document.getElementById('groups');
-  const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
-  const indexToRC=i=>({r:Math.floor(i/SIZE),c:i%SIZE}),rcToIndex=(r,c)=>r*SIZE+c,inBounds=(r,c)=>r>=0&&r<SIZE&&c>=0&&c<SIZE;
-  function neighbors(i){const {r,c}=indexToRC(i),o=[]; if(r>0)o.push(rcToIndex(r-1,c)); if(r<SIZE-1)o.push(rcToIndex(r+1,c)); if(c>0)o.push(rcToIndex(r,c-1)); if(c<SIZE-1)o.push(rcToIndex(r,c+1)); return o;}
-  const edgeKey=(a,b)=>`${Math.min(a,b)}-${Math.max(a,b)}`;
-  function areCorrectOrientedNeighbors(piece,nPiece,pos,nPos){const p=indexToRC(piece),np=indexToRC(nPiece),bp=indexToRC(pos),bnp=indexToRC(nPos); return np.r-p.r===bnp.r-bp.r&&np.c-p.c===bnp.c-bp.c&&Math.abs(np.r-p.r)+Math.abs(np.c-p.c)===1;}
-  function getGroupPositions(board,pieceGroup,groupId){const out=[];for(let pos=0;pos<TOTAL;pos++)if(pieceGroup[board[pos]]===groupId)out.push(pos);return out;}
-  function makeGame(){const original=[...Array(TOTAL).keys()]; let board=shuffle(original); if(board.every((p,i)=>p===i)) board=shuffle(original); const start=Math.floor(Math.random()*TOTAL),vis=new Set([start,...neighbors(start)]); let revealed=board.map(p=>vis.has(p)); const pieceGroup=[...Array(TOTAL).keys()]; const completedEdges=new Set(); board=forceMergeOpportunity(board,revealed,pieceGroup,completedEdges); return {board,revealed,pieceGroup,completedEdges,moves:0,message:'Открой картинку, соединяя правильных соседей'};}
-  function revealAroundPositions(positions,revealed){const next=revealed.slice(); for(const pos of positions){next[pos]=true; for(const n of neighbors(pos)) next[n]=true;} return next;}
-function hasAvailableMerge(board,revealed,pieceGroup,completedEdges){for(let pos=0;pos<TOTAL;pos++){if(!revealed[pos]) continue; const piece=board[pos]; for(const nPos of neighbors(pos)){if(!revealed[nPos]) continue; const nPiece=board[nPos]; const key=edgeKey(piece,nPiece); if(pieceGroup[piece]!==pieceGroup[nPiece] && !completedEdges.has(key) && areCorrectOrientedNeighbors(piece,nPiece,pos,nPos)) return true;}} return false;}
-  function forceMergeOpportunity(board,revealed,pieceGroup,completedEdges){if(hasAvailableMerge(board,revealed,pieceGroup,completedEdges)) return board.slice(); const nextBoard=board.slice(); const piecePos=new Array(TOTAL); for(let i=0;i<TOTAL;i++) piecePos[nextBoard[i]]=i; const revealedPos=[]; for(let i=0;i<TOTAL;i++) if(revealed[i]) revealedPos.push(i); for(const pos of revealedPos){for(const nPos of neighbors(pos)){if(!revealed[nPos]) continue; const aRC=indexToRC(pos), bRC=indexToRC(nPos), dr=bRC.r-aRC.r, dc=bRC.c-aRC.c; for(let a=0;a<TOTAL;a++){const arc=indexToRC(a), br=arc.r+dr, bc=arc.c+dc; if(!inBounds(br,bc)) continue; const b=rcToIndex(br,bc); const key=edgeKey(a,b); if(pieceGroup[a]===pieceGroup[b]||completedEdges.has(key)) continue; const posA=piecePos[a], posB=piecePos[b]; [nextBoard[pos],nextBoard[posA]]=[nextBoard[posA],nextBoard[pos]]; piecePos[nextBoard[posA]]=posA; piecePos[nextBoard[pos]]=pos; const newPosB=piecePos[b]; [nextBoard[nPos],nextBoard[newPosB]]=[nextBoard[newPosB],nextBoard[nPos]]; piecePos[nextBoard[newPosB]]=newPosB; piecePos[nextBoard[nPos]]=nPos; if(hasAvailableMerge(nextBoard,revealed,pieceGroup,completedEdges)) return nextBoard; }}} return nextBoard;}
-  function mergeGroupsIfNeeded(board,revealed,pieceGroup,completedEdges,changedPositions){let nextPieceGroup=pieceGroup.slice(); const nextEdges=new Set(completedEdges); let nextRevealed=revealed.slice(); const mergePositions=new Set(); let found=0; const check=new Set(); for(const pos of changedPositions){check.add(pos); for(const n of neighbors(pos)) check.add(n);} let merged=true; while(merged){merged=false; for(const pos of check){const piece=board[pos]; for(const nPos of neighbors(pos)){const nPiece=board[nPos],key=edgeKey(piece,nPiece),a=nextPieceGroup[piece],b=nextPieceGroup[nPiece],visible=nextRevealed[pos]&&nextRevealed[nPos]; if(a!==b&&visible&&!nextEdges.has(key)&&areCorrectOrientedNeighbors(piece,nPiece,pos,nPos)){const keep=Math.min(a,b),rm=Math.max(a,b); nextPieceGroup=nextPieceGroup.map(id=>id===rm?keep:id); nextEdges.add(key); found++; const mergedPos=getGroupPositions(board,nextPieceGroup,keep); for(const p of mergedPos){mergePositions.add(p); check.add(p); for(const near of neighbors(p)) check.add(near);} merged=true; }}}}
-    if(mergePositions.size>0) nextRevealed=revealAroundPositions([...mergePositions],nextRevealed);
-    const nextBoard=forceMergeOpportunity(board,nextRevealed,nextPieceGroup,nextEdges);
-    return {nextBoard,nextRevealed,nextPieceGroup,nextEdges,found};
-  }
-  function tryMoveGroup(board,revealed,pieceGroup,from,to){const movedPiece=board[from],gId=pieceGroup[movedPiece],moving=getGroupPositions(board,pieceGroup,gId); if(moving.length===1){const nb=board.slice(),nr=revealed.slice(); [nb[from],nb[to]]=[nb[to],nb[from]]; [nr[from],nr[to]]=[nr[to],nr[from]]; return {board:nb,revealed:nr,changedPositions:[from,to]}; }
-    const fromRC=indexToRC(from),toRC=indexToRC(to),dr=toRC.r-fromRC.r,dc=toRC.c-fromRC.c,movingSet=new Set(moving),targets=[];
-    for(const pos of moving){const {r,c}=indexToRC(pos),nr=r+dr,nc=c+dc; if(!inBounds(nr,nc)) return null; targets.push(rcToIndex(nr,nc));}
-    const targetSet=new Set(targets),nb=board.slice(),nr=revealed.slice(); const incoming=targets.filter(p=>!movingSet.has(p)),outgoing=moving.filter(p=>!targetSet.has(p)); if(incoming.length!==outgoing.length) return null;
-    const incomingByRel=new Map(); for(const pos of incoming){const p=indexToRC(pos); incomingByRel.set(`${p.r-toRC.r},${p.c-toRC.c}`,pos);} for(const pos of outgoing){const p=indexToRC(pos); const src=incomingByRel.get(`${p.r-fromRC.r},${p.c-fromRC.c}`); if(src===undefined) return null; nb[pos]=board[src]; nr[pos]=revealed[src];}
-    for(let i=0;i<moving.length;i++){nb[targets[i]]=board[moving[i]]; nr[targets[i]]=revealed[moving[i]];}
-    return {board:nb,revealed:nr,changedPositions:[...new Set([...moving,...targets])]};
-  }
-  function isWon(){const solved=state.game.board.filter((p,i)=>p===i).length,groups=new Set(state.game.pieceGroup).size; return solved===TOTAL||groups===1;}
-  function swapTiles(from,to){if(from==null||to==null||from===to||isWon())return; const prev=state.game; const moved=tryMoveGroup(prev.board,prev.revealed,prev.pieceGroup,from,to); if(!moved){prev.message='Монолит нельзя переместить сюда'; render(); return;} const merged=mergeGroupsIfNeeded(moved.board,moved.revealed,prev.pieceGroup,prev.completedEdges,moved.changedPositions); const newGroups=new Set(merged.nextPieceGroup).size, solved=merged.nextBoard.filter((p,i)=>p===i).length; state.game={board:merged.nextBoard,revealed:merged.nextRevealed,pieceGroup:merged.nextPieceGroup,completedEdges:merged.nextEdges,moves:prev.moves+1,message:solved===TOTAL||newGroups===1?'Пазл собран!':merged.found>0?`Правильное объединение: ${merged.found}`:'Пока нет правильного объединения'}; render(); }
-  function render(){const g=state.game; $msg.textContent=g.message; $moves.textContent=String(g.moves); $groups.textContent=String(new Set(g.pieceGroup).size); $board.innerHTML='';
-    g.board.forEach((piece,pos)=>{const tile=document.createElement('div'); tile.className='tile'; tile.draggable=!isWon(); if(isWon()) tile.style.cursor='default';
-      const groupId=g.pieceGroup[piece],groupSize=g.pieceGroup.reduce((n,id)=>n+(id===groupId?1:0),0),isCorrect=piece===pos;
-      if(groupSize>1) tile.classList.add('group'); if(state.dragGroupId!==null&&state.dragGroupId===groupId) tile.classList.add('dragging-group');
-      if(groupSize<=1){ tile.style.borderColor='rgba(255,255,255,.25)'; tile.style.boxShadow='none'; }
-      if(g.revealed[pos]){const me=indexToRC(pos);
-        const upSame=inBounds(me.r-1,me.c)&&g.pieceGroup[g.board[rcToIndex(me.r-1,me.c)]]===groupId;
-        const dnSame=inBounds(me.r+1,me.c)&&g.pieceGroup[g.board[rcToIndex(me.r+1,me.c)]]===groupId;
-        const lfSame=inBounds(me.r,me.c-1)&&g.pieceGroup[g.board[rcToIndex(me.r,me.c-1)]]===groupId;
-        const rtSame=inBounds(me.r,me.c+1)&&g.pieceGroup[g.board[rcToIndex(me.r,me.c+1)]]===groupId;
-        const up=!upSame, dn=!dnSame, lf=!lfSame, rt=!rtSame;
-        const frameColor = groupSize > 1 ? '#67e8f9' : 'rgba(255,255,255,.25)';
-        tile.style.borderTopColor=up?frameColor:'transparent';
-        tile.style.borderBottomColor=dn?frameColor:'transparent';
-        tile.style.borderLeftColor=lf?frameColor:'transparent';
-        tile.style.borderRightColor=rt?frameColor:'transparent';
-        tile.style.borderTopLeftRadius='0'; tile.style.borderTopRightRadius='0'; tile.style.borderBottomLeftRadius='0'; tile.style.borderBottomRightRadius='0';
-      }
-      tile.addEventListener('dragstart',e=>{state.dragFrom=pos; state.dragGroupId=groupId; e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',String(pos));});
-      tile.addEventListener('dragover',e=>e.preventDefault());
-      tile.addEventListener('drop',e=>{e.preventDefault(); swapTiles(state.dragFrom,pos); state.dragFrom=null; state.dragGroupId=null; render();});
-      tile.addEventListener('dragend',()=>{state.dragFrom=null; state.dragGroupId=null; render();});
-      if(g.revealed[pos]){const {r,c}=indexToRC(piece); tile.style.backgroundImage=`url(${IMG})`; tile.style.backgroundSize=`${SIZE*100}% ${SIZE*100}%`; tile.style.backgroundPosition=`${(c/(SIZE-1))*100}% ${(r/(SIZE-1))*100}%`; const num=document.createElement('div'); num.className='num'; num.textContent=String(piece+1); tile.appendChild(num); if(groupSize>1){const grp=document.createElement('div'); grp.className='grp'; grp.textContent=`x${groupSize}`; tile.appendChild(grp);}}
-      else{tile.classList.add('hidden'); const q=document.createElement('div'); q.className='q'; q.textContent='?'; tile.appendChild(q);} $board.appendChild(tile);
-    });
-  }
-  document.getElementById('newGame').addEventListener('click',()=>{state.game=makeGame(); state.dragFrom=null; state.dragGroupId=null; render();});
-  state.game=makeGame(); render();
+(()=>{const SIZE=7,TOTAL=49,IMG='https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1000&q=80';
+const state={game:null,dragFrom:null,dragGroupId:null}; const $b=document.getElementById('board'),$m=document.getElementById('message'),$mv=document.getElementById('moves'),$g=document.getElementById('groups');
+const i2rc=i=>({r:Math.floor(i/SIZE),c:i%SIZE}),rc2i=(r,c)=>r*SIZE+c,inB=(r,c)=>r>=0&&r<SIZE&&c>=0&&c<SIZE,edge=(a,b)=>`${Math.min(a,b)}-${Math.max(a,b)}`;
+const sh=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+function neigh(i){const {r,c}=i2rc(i),o=[];if(r>0)o.push(rc2i(r-1,c));if(r<SIZE-1)o.push(rc2i(r+1,c));if(c>0)o.push(rc2i(r,c-1));if(c<SIZE-1)o.push(rc2i(r,c+1));return o}
+function canMerge(p,np,pos,npos){const a=i2rc(p),b=i2rc(np),x=i2rc(pos),y=i2rc(npos);return b.r-a.r===y.r-x.r&&b.c-a.c===y.c-x.c&&Math.abs(b.r-a.r)+Math.abs(b.c-a.c)===1}
+function ensureAssigned(g,positions){const unassigned=[]; for(let i=0;i<TOTAL;i++) if(g.board[i]===null) unassigned.push(i); for(const pos of positions){ if(g.board[pos]!==null) continue; const take=(Math.random()*g.pool.length)|0; const piece=g.pool.splice(take,1)[0]; g.board[pos]=piece; }}
+function revealAround(g,positions){const open=[]; for(const pos of positions){if(!g.revealed[pos]){g.revealed[pos]=true;open.push(pos)} for(const n of neigh(pos)) if(!g.revealed[n]){g.revealed[n]=true;open.push(n)}} ensureAssigned(g,open)}
+function groupPos(g,id){const out=[];for(let i=0;i<TOTAL;i++){const p=g.board[i]; if(p!==null&&g.pieceGroup[p]===id) out.push(i)} return out}
+function mergeIfNeeded(g,changed){let merged=true,found=0;const check=new Set();changed.forEach(p=>{check.add(p);neigh(p).forEach(n=>check.add(n))});
+while(merged){merged=false; for(const pos of check){const p=g.board[pos]; if(p===null||!g.revealed[pos]) continue; for(const npos of neigh(pos)){const np=g.board[npos]; if(np===null||!g.revealed[npos]) continue; const a=g.pieceGroup[p],b=g.pieceGroup[np],k=edge(p,np); if(a!==b&&!g.completedEdges.has(k)&&canMerge(p,np,pos,npos)){const keep=Math.min(a,b),rm=Math.max(a,b); g.pieceGroup=g.pieceGroup.map(v=>v===rm?keep:v); g.completedEdges.add(k); found++; groupPos(g,keep).forEach(pp=>{check.add(pp);neigh(pp).forEach(n=>check.add(n))}); merged=true;}}}}
+if(found>0){const all=[];for(let i=0;i<TOTAL;i++){const p=g.board[i]; if(p!==null){for(const n of neigh(i)){const np=g.board[n]; if(np!==null&&g.pieceGroup[p]===g.pieceGroup[np]){all.push(i);break}}}} revealAround(g,all)} return found}
+function tryMove(g,from,to){if(from===to)return null; const p=g.board[from]; if(p===null) return null; const gid=g.pieceGroup[p]; const moving=groupPos(g,gid);
+if(moving.length===1){[g.board[from],g.board[to]]=[g.board[to],g.board[from]]; [g.revealed[from],g.revealed[to]]=[g.revealed[to],g.revealed[from]]; return [from,to]}
+const f=i2rc(from),t=i2rc(to),dr=t.r-f.r,dc=t.c-f.c,mset=new Set(moving),targets=[]; for(const pos of moving){const a=i2rc(pos),nr=a.r+dr,nc=a.c+dc; if(!inB(nr,nc)) return null; targets.push(rc2i(nr,nc))}
+const tset=new Set(targets),incoming=targets.filter(x=>!mset.has(x)),outgoing=moving.filter(x=>!tset.has(x)); if(incoming.length!==outgoing.length)return null; const byRel=new Map(); incoming.forEach(pos=>{const a=i2rc(pos);byRel.set(`${a.r-t.r},${a.c-t.c}`,pos)});
+const nb=g.board.slice(),nr=g.revealed.slice(); for(const pos of outgoing){const a=i2rc(pos),src=byRel.get(`${a.r-f.r},${a.c-f.c}`); if(src==null)return null; nb[pos]=g.board[src]; nr[pos]=g.revealed[src]}
+for(let i=0;i<moving.length;i++){nb[targets[i]]=g.board[moving[i]]; nr[targets[i]]=g.revealed[moving[i]]} g.board=nb; g.revealed=nr; return [...new Set([...moving,...targets])]}
+function makeGame(){const start=((Math.random()*TOTAL)|0),rev=Array(TOTAL).fill(false); rev[start]=true; neigh(start).forEach(n=>rev[n]=true); const board=Array(TOTAL).fill(null); const pool=sh([...Array(TOTAL).keys()]); const g={board,revealed:rev,pool,pieceGroup:[...Array(TOTAL).keys()],completedEdges:new Set(),moves:0,message:'Открой картинку, соединяя правильных соседей'}; ensureAssigned(g,rev.map((v,i)=>v?i:-1).filter(i=>i>=0)); return g}
+function won(g){let solved=0; for(let i=0;i<TOTAL;i++) if(g.board[i]===i) solved++; return solved===TOTAL||new Set(g.pieceGroup).size===1}
+function render(){const g=state.game; $m.textContent=g.message; $mv.textContent=g.moves; $g.textContent=new Set(g.pieceGroup).size; $b.innerHTML='';
+for(let pos=0;pos<TOTAL;pos++){const piece=g.board[pos],tile=document.createElement('div'); tile.className='tile'; tile.draggable=!won(g); if(won(g)) tile.style.cursor='default';
+let gid=null,gs=1; if(piece!==null){gid=g.pieceGroup[piece]; gs=g.pieceGroup.reduce((n,v)=>n+(v===gid?1:0),0)} if(gs>1) tile.classList.add('group'); if(state.dragGroupId!==null&&gid===state.dragGroupId) tile.classList.add('dragging-group');
+if(g.revealed[pos]&&piece!==null){const upSame=(()=>{const m=i2rc(pos);return inB(m.r-1,m.c)&&g.board[rc2i(m.r-1,m.c)]!==null&&g.pieceGroup[g.board[rc2i(m.r-1,m.c)]]===gid})();
+const dnSame=(()=>{const m=i2rc(pos);return inB(m.r+1,m.c)&&g.board[rc2i(m.r+1,m.c)]!==null&&g.pieceGroup[g.board[rc2i(m.r+1,m.c)]]===gid})();
+const lfSame=(()=>{const m=i2rc(pos);return inB(m.r,m.c-1)&&g.board[rc2i(m.r,m.c-1)]!==null&&g.pieceGroup[g.board[rc2i(m.r,m.c-1)]]===gid})();
+const rtSame=(()=>{const m=i2rc(pos);return inB(m.r,m.c+1)&&g.board[rc2i(m.r,m.c+1)]!==null&&g.pieceGroup[g.board[rc2i(m.r,m.c+1)]]===gid})();
+const c=gs>1?'#67e8f9':'rgba(255,255,255,.25)'; tile.style.borderTopColor=upSame?'transparent':c; tile.style.borderBottomColor=dnSame?'transparent':c; tile.style.borderLeftColor=lfSame?'transparent':c; tile.style.borderRightColor=rtSame?'transparent':c;
+const rc=i2rc(piece); tile.style.backgroundImage=`url(${IMG})`; tile.style.backgroundSize=`${SIZE*100}% ${SIZE*100}%`; tile.style.backgroundPosition=`${(rc.c/(SIZE-1))*100}% ${(rc.r/(SIZE-1))*100}%`; const n=document.createElement('div'); n.className='num'; n.textContent=piece+1; tile.appendChild(n); if(gs>1){const gr=document.createElement('div'); gr.className='grp'; gr.textContent='x'+gs; tile.appendChild(gr)}
+}else{tile.classList.add('hidden'); const q=document.createElement('div'); q.className='q'; q.textContent='?'; tile.appendChild(q)}
+ tile.addEventListener('dragstart',e=>{state.dragFrom=pos; state.dragGroupId=(piece!==null?g.pieceGroup[piece]:null); e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',String(pos));});
+ tile.addEventListener('dragover',e=>e.preventDefault()); tile.addEventListener('drop',e=>{e.preventDefault(); if(state.dragFrom!=null){const ch=tryMove(g,state.dragFrom,pos); if(ch){const found=mergeIfNeeded(g,ch); g.moves++; g.message=won(g)?'Пазл собран!':found>0?`Правильное объединение: ${found}`:'Пока нет правильного объединения';}} state.dragFrom=null; state.dragGroupId=null; render();}); tile.addEventListener('dragend',()=>{state.dragFrom=null; state.dragGroupId=null; render()});
+$b.appendChild(tile)} }
+ document.getElementById('newGame').addEventListener('click',()=>{state.game=makeGame();state.dragFrom=null;state.dragGroupId=null;render()}); state.game=makeGame(); render();
 })();
-</script>
-</body>
-</html>
+</script></body></html>
