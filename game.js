@@ -219,6 +219,45 @@ function clearPiecesUnderOpenAreas(preferredSlots = []){
   }
 }
 
+function resolveAnyOverlaps(){
+  const { w, h } = cellSize();
+  const used = new Set();
+  const overlaps = [];
+
+  for(const p of state.pieces){
+    const key = gridKeyFromPos(p.x, p.y);
+    if(!used.has(key)){
+      used.add(key);
+      continue;
+    }
+    overlaps.push(p);
+  }
+
+  for(const p of overlaps){
+    let best = null;
+    let bestDist = Number.POSITIVE_INFINITY;
+    for(let r=0;r<GRID;r++){
+      for(let c=0;c<GRID;c++){
+        const slotKey = `${r}|${c}`;
+        if(used.has(slotKey)) continue;
+        const x = c*w;
+        const y = r*h;
+        const d = Math.hypot(p.x-x, p.y-y);
+        if(d < bestDist){
+          bestDist = d;
+          best = { x, y, slotKey };
+        }
+      }
+    }
+    if(best){
+      p.x = best.x;
+      p.y = best.y;
+      position(p);
+      used.add(best.slotKey);
+    }
+  }
+}
+
 function bindDrag(piece){
   piece.el.addEventListener('pointerdown',e=>{
     if(!piece.open) return;
@@ -247,6 +286,7 @@ function finishDrag(){
   const moved = [...drag.group];
   const swapped = applyGridSwapIfNeeded(drag);
   state.drag=null;
+  resolveAnyOverlaps();
   if(!swapped){
     return;
   }
@@ -277,6 +317,7 @@ function finishDrag(){
     refreshMergedVisuals();
     checkWin();
   }
+  resolveAnyOverlaps();
 }
 
 function groupSizeByRoot(root){
