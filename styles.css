@@ -64,7 +64,13 @@ button {
   cursor: default;
 }
 .piece.open { outline: 1px solid rgba(255,255,255,.15); }
-.piece.dragging { cursor: grabbing; z-index: 9000 !important; }
+.piece.dragging {
+  cursor: grabbing;
+  z-index: 9000 !important;
+  transform: translateY(-4px) scale(1.03);
+  box-shadow: 0 10px 22px rgba(0,0,0,.42), 0 2px 6px rgba(0,0,0,.25);
+  filter: brightness(1.03);
+}
 .status-win { color: #57e389; font-weight: 700; }
 
 .piece.merged {
