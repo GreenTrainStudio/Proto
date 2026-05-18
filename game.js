@@ -30,6 +30,12 @@ function cellSize(){
   return { w: board.clientWidth / GRID, h: board.clientHeight / GRID };
 }
 
+function randomAdjacentPair(){
+  const a = (Math.random() * TOTAL) | 0;
+  const nbs = neighbors(a);
+  return [a, nbs[(Math.random() * nbs.length) | 0]];
+}
+
 async function resolveImage(){
   for(const name of ['images/source.jpg','images/source.png']){
     if(await canLoadImage(name)) return name;
@@ -75,8 +81,13 @@ async function init(){
     board.appendChild(el);
   }
 
-  const initial = shuffle([...Array(TOTAL).keys()]).slice(0, INITIAL_OPEN);
-  initial.forEach(openPiece);
+  const [pairA, pairB] = randomAdjacentPair();
+  openPiece(pairA);
+  openPiece(pairB);
+
+  const remainingInitial = Math.max(0, INITIAL_OPEN - 2);
+  const extra = shuffle([...Array(TOTAL).keys()].filter(i=>i!==pairA && i!==pairB)).slice(0, remainingInitial);
+  extra.forEach(openPiece);
   statusEl.textContent='Открыто 3 случайных кусочка. Сливайте совпадающие части!';
 }
 
