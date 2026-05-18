@@ -1,17 +1,10 @@
-const SLICE_CONFIG = {
-  rows: 7,
-  cols: 7,
-};
+import { SLICE_CONFIG, GAMEPLAY_CONFIG, REVEAL_CONFIG } from './game-config.js';
+
 const ROWS = SLICE_CONFIG.rows;
 const COLS = SLICE_CONFIG.cols;
 const TOTAL = ROWS * COLS;
-const INITIAL_OPEN = 3;
-const SNAP = 18;
-const REVEAL_CONFIG = {
-  mainPiecesCount: 1,
-  extraPiecesCount: 1,
-  onlyNearMergedArea: true,
-};
+const INITIAL_OPEN = GAMEPLAY_CONFIG.initialOpen;
+const SNAP = GAMEPLAY_CONFIG.snap;
 
 const board = document.getElementById('board');
 const statusEl = document.getElementById('status');
