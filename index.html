@@ -17,22 +17,18 @@ function ensureInitialMerge(g){if(hasMergeNow(g)) return; const rev=[]; for(let 
 function mergeIfNeeded(g,changed){let merged=true,found=0;const check=new Set();changed.forEach(p=>{check.add(p);neigh(p).forEach(n=>check.add(n))});
 while(merged){merged=false; for(const pos of check){const p=g.board[pos]; if(p===null||!g.revealed[pos]) continue; for(const npos of neigh(pos)){const np=g.board[npos]; if(np===null||!g.revealed[npos]) continue; const a=g.pieceGroup[p],b=g.pieceGroup[np],k=edge(p,np); if(a!==b&&!g.completedEdges.has(k)&&canMerge(p,np,pos,npos)){const keep=Math.min(a,b),rm=Math.max(a,b); g.pieceGroup=g.pieceGroup.map(v=>v===rm?keep:v); g.completedEdges.add(k); found++; groupPos(g,keep).forEach(pp=>{check.add(pp);neigh(pp).forEach(n=>check.add(n))}); merged=true;}}}}
 if(found>0){const all=[];for(let i=0;i<TOTAL;i++){const p=g.board[i]; if(p!==null){for(const n of neigh(i)){const np=g.board[n]; if(np!==null&&g.pieceGroup[p]===g.pieceGroup[np]){all.push(i);break}}}} revealAround(g,all)} return found}
-function tryMove(g,from,to,forcedMoving=null){
-if(from===to)return null; const p=g.board[from]; if(p===null) return null;
-const gid=g.pieceGroup[p]; const moving=forcedMoving&&forcedMoving.length?forcedMoving.slice():groupPos(g,gid);
+function tryMove(g,from,to,forcedMoving=null){if(from===to)return null; const p=g.board[from]; if(p===null) return null; const gid=g.pieceGroup[p]; const moving=forcedMoving&&forcedMoving.length?forcedMoving.slice():groupPos(g,gid);
 if(moving.length===1){[g.board[from],g.board[to]]=[g.board[to],g.board[from]]; [g.revealed[from],g.revealed[to]]=[g.revealed[to],g.revealed[from]]; return [from,to]}
-const f=i2rc(from),t=i2rc(to),dr=t.r-f.r,dc=t.c-f.c;
-const mapping=[]; const affected=new Set();
-for(const src of moving){const a=i2rc(src),nr=a.r+dr,nc=a.c+dc; if(!inB(nr,nc)) return null; const dst=rc2i(nr,nc); mapping.push([src,dst]); affected.add(src); affected.add(dst);}
+const fromRC=i2rc(from),toRC=i2rc(to),dr=toRC.r-fromRC.r,dc=toRC.c-fromRC.c,movingSet=new Set(moving),targets=[];
+for(const pos of moving){const a=i2rc(pos),nr=a.r+dr,nc=a.c+dc; if(!inB(nr,nc)) return null; targets.push(rc2i(nr,nc));}
+const targetSet=new Set(targets),incoming=targets.filter(pos=>!movingSet.has(pos)),outgoing=moving.filter(pos=>!targetSet.has(pos));
+if(incoming.length!==outgoing.length) return null;
+const incomingByRel=new Map();
+for(const pos of incoming){const p=i2rc(pos); incomingByRel.set(`${p.r-toRC.r},${p.c-toRC.c}`,pos);}
 const nb=g.board.slice(),nr=g.revealed.slice();
-for(const pos of affected){nb[pos]=g.board[pos]; nr[pos]=g.revealed[pos];}
-for(const [src,dst] of mapping){nb[dst]=g.board[src]; nr[dst]=g.revealed[src];}
-const targetSet=new Set(mapping.map(x=>x[1]));
-for(const pos of moving){if(targetSet.has(pos)) continue; // gets overwritten by moved pieces
-const a=i2rc(pos),back=rc2i(a.r+dr,a.c+dc); // cell that moved into this slot before translation
-if(affected.has(back)&&!moving.includes(back)){nb[pos]=g.board[back]; nr[pos]=g.revealed[back];}
-}
-g.board=nb; g.revealed=nr; return [...affected];}
+for(const pos of outgoing){const p=i2rc(pos); const key=`${p.r-fromRC.r},${p.c-fromRC.c}`; const src=incomingByRel.get(key); if(src===undefined) return null; nb[pos]=g.board[src]; nr[pos]=g.revealed[src];}
+for(let i=0;i<moving.length;i++){nb[targets[i]]=g.board[moving[i]]; nr[targets[i]]=g.revealed[moving[i]];}
+g.board=nb; g.revealed=nr; return [...new Set([...moving,...targets])];}
 function makeGame(){const rev=Array(TOTAL).fill(false); const start=(Math.random()*TOTAL)|0; rev[start]=true; const ns=neigh(start); if(ns.length>0) rev[ns[(Math.random()*ns.length)|0]]=true; const ids=sh([...Array(TOTAL).keys()].filter(i=>!rev[i])); for(let i=0;i<3;i++) rev[ids[i]]=true; const board=Array(TOTAL).fill(null); const pool=sh([...Array(TOTAL).keys()]); const g={board,revealed:rev,pool,pieceGroup:[...Array(TOTAL).keys()],completedEdges:new Set(),moves:0,message:'Открой картинку, соединяя правильных соседей'}; ensureAssigned(g,rev.map((v,i)=>v?i:-1).filter(i=>i>=0)); ensureInitialMerge(g); return g}
 function won(g){let solved=0; for(let i=0;i<TOTAL;i++) if(g.board[i]===i) solved++; return solved===TOTAL||new Set(g.pieceGroup).size===1}
 function render(){const g=state.game; $m.textContent=g.message; $mv.textContent=g.moves; $g.textContent=new Set(g.pieceGroup).size; $b.innerHTML='';
