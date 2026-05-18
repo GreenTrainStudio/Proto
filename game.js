@@ -35,6 +35,18 @@ function cellSize(){
   return { w: board.clientWidth / GRID, h: board.clientHeight / GRID };
 }
 
+function gridCellFromPos(x, y){
+  const { w, h } = cellSize();
+  const c = Math.max(0, Math.min(GRID - 1, Math.round(x / w)));
+  const r = Math.max(0, Math.min(GRID - 1, Math.round(y / h)));
+  return { r, c };
+}
+
+function gridKeyFromPos(x, y){
+  const { r, c } = gridCellFromPos(x, y);
+  return `${r}|${c}`;
+}
+
 function randomAdjacentPair(){
   const a = (Math.random() * TOTAL) | 0;
   const nbs = neighbors(a);
@@ -109,9 +121,9 @@ function ensureVisiblePieceOnFreeSlot(piece){
   const occupied = new Set(
     state.pieces
       .filter(p=>p.open && p.i!==piece.i)
-      .map(p=>`${p.x}|${p.y}`)
+      .map(p=>gridKeyFromPos(p.x, p.y))
   );
-  const ownKey = `${piece.x}|${piece.y}`;
+  const ownKey = gridKeyFromPos(piece.x, piece.y);
   if(!occupied.has(ownKey)) return;
 
   const { w, h } = cellSize();
@@ -121,7 +133,7 @@ function ensureVisiblePieceOnFreeSlot(piece){
     for(let c=0;c<GRID;c++){
       const x = c*w;
       const y = r*h;
-      const key = `${x}|${y}`;
+      const key = `${r}|${c}`;
       if(occupied.has(key)) continue;
       const d = Math.hypot(piece.x-x, piece.y-y);
       if(d < bestDist){
@@ -138,15 +150,18 @@ function ensureVisiblePieceOnFreeSlot(piece){
 }
 
 function clearPiecesUnderOpenAreas(preferredSlots = []){
-  const occupiedByOpen = new Set(state.pieces.filter(p=>p.open).map(p=>`${p.x}|${p.y}`));
-  const occupiedAll = new Set(state.pieces.filter(p=>p.open).map(p=>`${p.x}|${p.y}`));
+  const occupiedByOpen = new Set(state.pieces.filter(p=>p.open).map(p=>gridKeyFromPos(p.x, p.y)));
+  const occupiedAll = new Set(state.pieces.filter(p=>p.open).map(p=>gridKeyFromPos(p.x, p.y)));
   const { w, h } = cellSize();
   const preferredQueue = preferredSlots
-    .map(s=>({x:s.x,y:s.y,key:`${s.x}|${s.y}`}))
+    .map(s=>{
+      const { r, c } = gridCellFromPos(s.x, s.y);
+      return { x:c*w, y:r*h, key:`${r}|${c}` };
+    })
     .filter(s=>!occupiedAll.has(s.key));
 
   for(const hidden of state.pieces.filter(p=>!p.open)){
-    const key = `${hidden.x}|${hidden.y}`;
+    const key = gridKeyFromPos(hidden.x, hidden.y);
     if(!occupiedByOpen.has(key) && !occupiedAll.has(key)) {
       occupiedAll.add(key);
       continue;
@@ -172,7 +187,7 @@ function clearPiecesUnderOpenAreas(preferredSlots = []){
       for(let c=0;c<GRID;c++){
         const x = c*w;
         const y = r*h;
-        const slotKey = `${x}|${y}`;
+        const slotKey = `${r}|${c}`;
         if(occupiedAll.has(slotKey)) continue;
         const d = Math.hypot(hidden.x-x, hidden.y-y);
         if(d < bestDist){
@@ -185,7 +200,7 @@ function clearPiecesUnderOpenAreas(preferredSlots = []){
       hidden.x = best.x;
       hidden.y = best.y;
       position(hidden);
-      occupiedAll.add(`${hidden.x}|${hidden.y}`);
+      occupiedAll.add(gridKeyFromPos(hidden.x, hidden.y));
     }
   }
 }
