@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,13 +8,34 @@
 </head>
 <body>
   <main class="app">
-    <section class="controls">
-      <button id="newGameBtn">Новая игра</button>
-      <span id="status"></span>
+    <section id="menuScreen" class="menu-screen" aria-labelledby="menuTitle">
+      <div class="menu-heading">
+        <h1 id="menuTitle">Discover</h1>
+      </div>
+
+      <div id="puzzleGrid" class="puzzle-grid" aria-live="polite"></div>
+      <p id="menuStatus" class="menu-status"></p>
     </section>
 
-    <section class="board-wrap">
-      <div id="board" class="board"></div>
+    <section id="gameScreen" class="game-screen" hidden>
+      <section class="controls">
+        <button id="backToMenuBtn" type="button">Menu</button>
+        <button id="newGameBtn" type="button">New game</button>
+        <span id="status"></span>
+      </section>
+
+      <section class="board-wrap">
+        <div id="board" class="board"></div>
+      </section>
+    </section>
+
+    <section id="loadingScreen" class="loading-screen" hidden aria-live="polite">
+      <div class="loading-card">
+        <h1 class="loading-logo">Puzzl</h1>
+        <div class="loading-progress" role="progressbar" aria-label="Loading asset" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <span id="loadingProgressFill"></span>
+        </div>
+      </div>
     </section>
   </main>
 

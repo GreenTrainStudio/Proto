@@ -1,0 +1,37 @@
+[
+  {
+    "title": "Bee",
+    "image": "Bee.jpg",
+    "thumb": "thumbs/Bee.webp"
+  },
+  {
+    "title": "Bike",
+    "image": "Bike.jpg",
+    "thumb": "thumbs/Bike.webp"
+  },
+  {
+    "title": "Car",
+    "image": "Car.jpg",
+    "thumb": "thumbs/Car.webp"
+  },
+  {
+    "title": "Cat",
+    "image": "Cat.jpg",
+    "thumb": "thumbs/Cat.webp"
+  },
+  {
+    "title": "Fruits",
+    "image": "Fruits.jpg",
+    "thumb": "thumbs/Fruits.webp"
+  },
+  {
+    "title": "House",
+    "image": "House.jpg",
+    "thumb": "thumbs/House.webp"
+  },
+  {
+    "title": "Jelly",
+    "image": "Jelly.jpg",
+    "thumb": "thumbs/Jelly.webp"
+  }
+]
