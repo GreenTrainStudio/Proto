@@ -5,7 +5,7 @@ window.GAME_CONFIG = {
   },
 
   GAMEPLAY_CONFIG: {
-    initialOpen: 3,
+    revealAllAtStart: true,
     snap: 18,
   },
 

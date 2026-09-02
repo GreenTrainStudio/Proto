@@ -3,7 +3,8 @@ const { SLICE_CONFIG, GAMEPLAY_CONFIG, REVEAL_CONFIG, ANIMATION_CONFIG, PUZZLES 
 const ROWS = SLICE_CONFIG.rows;
 const COLS = SLICE_CONFIG.cols;
 const TOTAL = ROWS * COLS;
-const INITIAL_OPEN = GAMEPLAY_CONFIG.initialOpen;
+const REVEAL_ALL_AT_START = GAMEPLAY_CONFIG.revealAllAtStart === true;
+const INITIAL_OPEN = GAMEPLAY_CONFIG.initialOpen ?? 3;
 const SNAP = GAMEPLAY_CONFIG.snap;
 const MOVE_DURATION_MS = ANIMATION_CONFIG?.moveDurationMs ?? 300;
 const ANIM_ENABLED = ANIMATION_CONFIG?.enabled !== false;
@@ -376,7 +377,7 @@ function restoreSavedPuzzleState(saved){
     if(!Number.isFinite(x) || !Number.isFinite(y)) return false;
     piece.x = x;
     piece.y = y;
-    piece.open = Boolean(savedPiece.open);
+    piece.open = REVEAL_ALL_AT_START ? true : Boolean(savedPiece.open);
     position(piece);
     if(piece.open){
       applyOpenPieceVisual(piece);
@@ -649,6 +650,13 @@ async function init(){
     return;
   }
 
+  if(REVEAL_ALL_AT_START){
+    revealAllPieces();
+    statusEl.textContent='Arrange the revealed pieces to solve the puzzle.';
+    setLoadingProgress(100);
+    return;
+  }
+
   const [pairA, pairB] = randomAdjacentPair();
   openPiece(pairA);
   openPiece(pairB);
@@ -668,6 +676,14 @@ function openPiece(i){
   playRevealAnimation(p);
   refreshMergedVisuals();
   return true;
+}
+
+function revealAllPieces(){
+  state.pieces.forEach((piece) => {
+    piece.open = true;
+    applyOpenPieceVisual(piece);
+  });
+  refreshMergedVisuals();
 }
 
 function applyOpenPieceVisual(piece){
