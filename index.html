@@ -22,10 +22,19 @@
         <button id="backToMenuBtn" type="button">Menu</button>
         <button id="newGameBtn" type="button">New game</button>
         <span id="status"></span>
+        <span id="lives" class="lives" hidden aria-live="polite"></span>
       </section>
 
       <section class="board-wrap">
         <div id="board" class="board"></div>
+      </section>
+
+      <section id="choiceTray" class="choice-tray" hidden aria-label="Choose the next card">
+        <div class="choice-heading">
+          <span>Choose the next card</span>
+          <span id="choiceHint" class="choice-hint"></span>
+        </div>
+        <div id="choiceCards" class="choice-cards"></div>
       </section>
     </section>
 

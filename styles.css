@@ -240,6 +240,10 @@ h1 {
   align-content: center;
 }
 
+.game-screen.choice-game {
+  grid-template-rows: auto auto auto;
+}
+
 .loading-screen {
   position: fixed;
   inset: 0;
@@ -327,6 +331,14 @@ button {
   color: #c9d1e6;
 }
 
+.lives {
+  margin-left: auto;
+  color: #ff7184;
+  font-size: 18px;
+  letter-spacing: 2px;
+  white-space: nowrap;
+}
+
 .board-wrap {
   width: min(var(--board-max-w), calc(var(--board-max-h) * var(--board-aspect)));
   aspect-ratio: var(--board-aspect);
@@ -341,6 +353,13 @@ button {
   width: 100%;
   height: 100%;
   touch-action: none;
+}
+
+.choice-game .board {
+  background:
+    linear-gradient(rgba(255,255,255,.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.08) 1px, transparent 1px);
+  background-size: calc(100% / var(--cols)) calc(100% / var(--rows));
 }
 
 .piece {
@@ -360,6 +379,19 @@ button {
 .piece.hidden {
   background: repeating-linear-gradient(45deg,#3a435a,#3a435a 8px,#2f374b 8px,#2f374b 16px);
   border-color: rgba(255,255,255,.06);
+  cursor: default;
+}
+
+.choice-game .piece.hidden {
+  visibility: hidden;
+}
+
+.choice-game .piece.choice-target {
+  visibility: visible;
+  border: 2px solid #ffd166;
+  border-radius: 8px;
+  box-shadow: 0 0 0 2px rgba(255,209,102,.22), 0 0 18px rgba(255,209,102,.28);
+  animation: choice-target-pulse 1.25s ease-in-out infinite;
   cursor: default;
 }
 
@@ -392,6 +424,98 @@ button {
   transition: none !important;
 }
 
+.choice-tray {
+  width: min(var(--board-max-w), 100%);
+}
+
+.choice-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 24px;
+  margin-bottom: 6px;
+  color: #c9d1e6;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.choice-hint {
+  color: #7f8aa5;
+  font-weight: 500;
+}
+
+.choice-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.choice-card {
+  position: relative;
+  min-width: 0;
+  aspect-ratio: var(--piece-aspect, 1 / 1);
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 8px;
+  background-color: #30384c;
+  background-repeat: no-repeat;
+  box-shadow: 0 3px 10px rgba(0,0,0,.28);
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform 160ms ease, border-color 160ms ease, filter 160ms ease, opacity 160ms ease;
+}
+
+.choice-card:hover,
+.choice-card:focus-visible {
+  border-color: #ffd166;
+  outline: none;
+  transform: translateY(-3px);
+}
+
+.choice-card:disabled {
+  cursor: default;
+}
+
+.choice-card.is-wrong {
+  animation: choice-wrong-return 360ms ease both;
+}
+
+.choice-card.is-refreshing {
+  animation: choice-refresh 180ms ease both;
+}
+
+.choice-card.is-flying {
+  opacity: 0;
+}
+
+.flying-choice {
+  position: fixed;
+  z-index: 10001;
+  margin: 0;
+  pointer-events: none;
+  border: 1px solid #ffd166;
+  border-radius: 8px;
+  background-color: #30384c;
+  background-repeat: no-repeat;
+  box-shadow: 0 12px 28px rgba(0,0,0,.42);
+  transition: left var(--move-duration) ease, top var(--move-duration) ease, width var(--move-duration) ease, height var(--move-duration) ease, border-radius var(--move-duration) ease;
+}
+
+@keyframes choice-wrong-return {
+  0% { transform: translateY(0) scale(1); opacity: 1; }
+  45% { transform: translateY(-16px) scale(.88); opacity: .35; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+@keyframes choice-refresh {
+  0% { opacity: .35; transform: scale(.94); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes choice-target-pulse {
+  0%, 100% { opacity: .58; }
+  50% { opacity: 1; }
+}
+
 @keyframes piece-flip-reveal {
   0% {
     transform: rotateY(90deg) scale(0.96);
@@ -409,6 +533,14 @@ button {
 @media (max-width: 540px) {
   .puzzle-grid {
     grid-template-columns: repeat(2, minmax(0, 171px));
+  }
+
+  .game-screen {
+    padding: 10px;
+  }
+
+  .choice-cards {
+    gap: 7px;
   }
 }
 

@@ -5,7 +5,11 @@ window.GAME_CONFIG = {
   },
 
   GAMEPLAY_CONFIG: {
+    // "choice" fills the board in reading order and offers four cards below it.
+    // Use "classic" to keep the original drag-and-reveal gameplay.
+    mode: "choice",
     revealAllAtStart: true,
+    lives: 3,
     snap: 18,
   },
 

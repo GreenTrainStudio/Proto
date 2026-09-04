@@ -3,8 +3,10 @@ const { SLICE_CONFIG, GAMEPLAY_CONFIG, REVEAL_CONFIG, ANIMATION_CONFIG, PUZZLES 
 const ROWS = SLICE_CONFIG.rows;
 const COLS = SLICE_CONFIG.cols;
 const TOTAL = ROWS * COLS;
+const GAME_MODE = GAMEPLAY_CONFIG.mode === 'choice' ? 'choice' : 'classic';
 const REVEAL_ALL_AT_START = GAMEPLAY_CONFIG.revealAllAtStart === true;
 const INITIAL_OPEN = GAMEPLAY_CONFIG.initialOpen ?? 3;
+const INITIAL_LIVES = Math.max(1, Number(GAMEPLAY_CONFIG.lives) || 3);
 const SNAP = GAMEPLAY_CONFIG.snap;
 const MOVE_DURATION_MS = ANIMATION_CONFIG?.moveDurationMs ?? 300;
 const ANIM_ENABLED = ANIMATION_CONFIG?.enabled !== false;
@@ -22,6 +24,10 @@ const loadingScreen = document.getElementById('loadingScreen');
 const loadingProgressFill = document.getElementById('loadingProgressFill');
 const puzzleGrid = document.getElementById('puzzleGrid');
 const menuStatus = document.getElementById('menuStatus');
+const livesEl = document.getElementById('lives');
+const choiceTray = document.getElementById('choiceTray');
+const choiceCards = document.getElementById('choiceCards');
+const choiceHint = document.getElementById('choiceHint');
 document.getElementById('newGameBtn').addEventListener('click', () => restartCurrentPuzzle());
 document.getElementById('backToMenuBtn').addEventListener('click', () => showMenu());
 window.addEventListener('pagehide', () => saveCurrentPuzzleProgress());
@@ -38,6 +44,12 @@ const state = {
   parent: [],
   drag: null,
   mergeSuppression: new Set(),
+  choice: {
+    lives: INITIAL_LIVES,
+    nextIndex: 0,
+    options: [],
+    busy: false,
+  },
 };
 
 function idx(r, c) { return r * COLS + c; }
@@ -198,6 +210,9 @@ function getSavedPuzzleProgress(puzzle){
 
 function calculateCurrentProgress(){
   if(!state.pieces.length) return 0;
+  if(GAME_MODE === 'choice'){
+    return Math.round((state.choice.nextIndex / TOTAL) * 100);
+  }
   const counts = new Map();
   for(const piece of state.pieces){
     const root = find(piece.i);
@@ -219,7 +234,11 @@ function saveCurrentPuzzleProgress(forcePercent = null){
   const nextPercent = forcePercent ?? calculateCurrentProgress();
   const progress = readStoredProgress();
   const savedState = {
+    mode: GAME_MODE,
     percent: Math.max(0, Math.min(100, nextPercent)),
+    choice: GAME_MODE === 'choice'
+      ? { lives: state.choice.lives, nextIndex: state.choice.nextIndex }
+      : undefined,
     pieces: state.pieces.map((piece) => ({
       i: piece.i,
       x: piece.x,
@@ -364,6 +383,8 @@ function getSavedPuzzleState(puzzle){
   const saved = progress[progressKeyForPuzzle(puzzle)];
   if(!saved || typeof saved !== 'object' || !Array.isArray(saved.pieces)) return null;
   if(saved.pieces.length !== TOTAL) return null;
+  if(GAME_MODE === 'choice' && saved.mode !== 'choice') return null;
+  if(GAME_MODE === 'classic' && saved.mode === 'choice') return null;
   return saved;
 }
 
@@ -377,7 +398,9 @@ function restoreSavedPuzzleState(saved){
     if(!Number.isFinite(x) || !Number.isFinite(y)) return false;
     piece.x = x;
     piece.y = y;
-    piece.open = REVEAL_ALL_AT_START ? true : Boolean(savedPiece.open);
+    piece.open = GAME_MODE === 'choice'
+      ? Boolean(savedPiece.open)
+      : REVEAL_ALL_AT_START ? true : Boolean(savedPiece.open);
     position(piece);
     if(piece.open){
       applyOpenPieceVisual(piece);
@@ -397,6 +420,25 @@ function restoreSavedPuzzleState(saved){
   }
 
   refreshMergedVisuals();
+  if(GAME_MODE === 'choice'){
+    const savedCount = Number.isInteger(saved.choice?.nextIndex)
+      ? saved.choice.nextIndex
+      : state.pieces.filter(piece => piece.open).length;
+    state.choice.nextIndex = Math.max(1, Math.min(TOTAL, savedCount));
+    const savedLives = Number(saved.choice?.lives);
+    state.choice.lives = Number.isFinite(savedLives)
+      ? Math.max(0, Math.min(INITIAL_LIVES, savedLives))
+      : INITIAL_LIVES;
+    state.pieces.forEach(piece => {
+      piece.open = piece.i < state.choice.nextIndex;
+      if(piece.open) applyOpenPieceVisual(piece);
+      else {
+        piece.el.className = 'piece hidden';
+        piece.el.style.backgroundImage = '';
+      }
+    });
+    updateLives();
+  }
   checkWin();
   return true;
 }
@@ -601,6 +643,10 @@ function showMenu(){
   state.parent = [];
   statusEl.textContent = '';
   statusEl.className = '';
+  livesEl.hidden = true;
+  choiceTray.hidden = true;
+  document.body.classList.remove('choice-mode');
+  gameScreen.classList.remove('choice-game');
   gameScreen.hidden = true;
   menuScreen.hidden = false;
   document.body.classList.remove('playing');
@@ -612,6 +658,18 @@ async function init(){
   statusEl.textContent='Loading...';
   board.innerHTML='';
   state.pieces=[]; state.parent=[];
+  state.choice = {
+    lives: INITIAL_LIVES,
+    nextIndex: 0,
+    options: [],
+    busy: false,
+  };
+  const isChoiceMode = GAME_MODE === 'choice';
+  document.body.classList.toggle('choice-mode', isChoiceMode);
+  gameScreen.classList.toggle('choice-game', isChoiceMode);
+  livesEl.hidden = !isChoiceMode;
+  choiceTray.hidden = !isChoiceMode;
+  choiceCards.innerHTML = '';
   try { state.imgUrl = await resolveImage(); }
   catch(e){ statusEl.textContent=e.message; return; }
   setLoadingProgress(90);
@@ -622,7 +680,8 @@ async function init(){
 
   const cellW = board.clientWidth / COLS;
   const cellH = board.clientHeight / ROWS;
-  const shuffledSlots = shuffle([...Array(TOTAL).keys()]);
+  document.documentElement.style.setProperty('--piece-aspect', `${cellW} / ${cellH}`);
+  const shuffledSlots = isChoiceMode ? null : shuffle([...Array(TOTAL).keys()]);
 
   for(let i=0;i<TOTAL;i++){
     const [r,c]=rc(i);
@@ -630,22 +689,43 @@ async function init(){
     el.className='piece hidden';
     el.dataset.i=i;
 
-    const slot = shuffledSlots[i];
+    const slot = isChoiceMode ? i : shuffledSlots[i];
     const [slotR, slotC] = rc(slot);
     const piece={i,r,c,open:false,el,x:slotC*cellW,y:slotR*cellH};
 
     state.parent[i]=i;
     position(piece);
-    bindDrag(piece);
+    if(!isChoiceMode) bindDrag(piece);
     state.pieces.push(piece);
     board.appendChild(el);
   }
   setAnimationEnabled(ANIM_ENABLED);
   setLoadingProgress(98);
 
+  if(isChoiceMode){
+    const firstPiece = state.pieces[0];
+    firstPiece.open = true;
+    applyOpenPieceVisual(firstPiece);
+    refreshMergedVisuals();
+    state.choice.nextIndex = 1;
+  }
+
   const savedState = getSavedPuzzleState(state.selectedPuzzle);
   if(savedState && restoreSavedPuzzleState(savedState)){
-    statusEl.textContent='Progress restored.';
+    if(isChoiceMode){
+      renderChoiceOptions();
+      statusEl.textContent = state.choice.nextIndex >= TOTAL ? 'Solved.' : 'Progress restored.';
+    } else {
+      statusEl.textContent='Progress restored.';
+    }
+    setLoadingProgress(100);
+    return;
+  }
+
+  if(isChoiceMode){
+    updateLives();
+    renderChoiceOptions();
+    statusEl.textContent='Choose the card for the next slot.';
     setLoadingProgress(100);
     return;
   }
@@ -666,6 +746,180 @@ async function init(){
   extra.forEach(openPiece);
   statusEl.textContent='Match neighboring pieces to reveal more of the puzzle.';
   setLoadingProgress(100);
+}
+
+function updateLives(){
+  if(GAME_MODE !== 'choice') return;
+  const lives = Math.max(0, state.choice.lives);
+  livesEl.textContent = `${'♥'.repeat(lives)}${'♡'.repeat(Math.max(0, INITIAL_LIVES - lives))}`;
+  livesEl.setAttribute('aria-label', `${lives} lives remaining`);
+}
+
+function choicePieceIds(excluded = new Set()){
+  return shuffle([...Array(TOTAL).keys()].filter(i => !excluded.has(i)));
+}
+
+function updateChoiceTarget(){
+  if(GAME_MODE !== 'choice') return;
+  state.pieces.forEach(piece => {
+    piece.el.classList.toggle('choice-target', piece.i === state.choice.nextIndex && !piece.open);
+  });
+}
+
+function setChoiceCardVisual(card, pieceIndex){
+  const piece = state.pieces[pieceIndex];
+  const xDen = Math.max(COLS - 1, 1);
+  const yDen = Math.max(ROWS - 1, 1);
+  card.dataset.piece = String(pieceIndex);
+  card.setAttribute('aria-label', `Card ${pieceIndex + 1}`);
+  card.style.backgroundImage = `url(${state.imgUrl})`;
+  card.style.backgroundSize = `${COLS * 100}% ${ROWS * 100}%`;
+  card.style.backgroundPosition = `${(piece.c / xDen) * 100}% ${(piece.r / yDen) * 100}%`;
+}
+
+function createChoiceCard(pieceIndex){
+  const card = document.createElement('button');
+  card.type = 'button';
+  card.className = 'choice-card';
+  card.addEventListener('click', () => handleChoiceSelection(card));
+  setChoiceCardVisual(card, pieceIndex);
+  return card;
+}
+
+function renderChoiceOptions(){
+  if(GAME_MODE !== 'choice') return;
+  updateChoiceTarget();
+  if(state.choice.nextIndex >= TOTAL){
+    choiceCards.innerHTML = '';
+    choiceHint.textContent = 'Complete';
+    return;
+  }
+
+  const correct = state.choice.nextIndex;
+  const ids = [correct, ...choicePieceIds(new Set([correct])).slice(0, 3)];
+  state.choice.options = shuffle(ids);
+  choiceCards.innerHTML = '';
+  state.choice.options.forEach(pieceIndex => choiceCards.appendChild(createChoiceCard(pieceIndex)));
+  choiceHint.textContent = `Slot ${correct + 1} of ${TOTAL}`;
+  choiceCards.querySelectorAll('button').forEach(card => {
+    card.disabled = state.choice.lives <= 0;
+  });
+}
+
+function refreshWrongChoiceOptions(){
+  const correct = state.choice.nextIndex;
+  const buttons = [...choiceCards.querySelectorAll('.choice-card')];
+  const correctButton = buttons.find(card => Number(card.dataset.piece) === correct);
+  if(!correctButton) {
+    renderChoiceOptions();
+    return;
+  }
+
+  const replacementIds = choicePieceIds(new Set([correct])).slice(0, 3);
+  let replacementIndex = 0;
+  buttons.forEach(card => {
+    if(card === correctButton) return;
+    setChoiceCardVisual(card, replacementIds[replacementIndex++]);
+  });
+
+  // Keep the correct card itself, but shuffle the positions of all four cards.
+  shuffle(buttons).forEach(card => choiceCards.appendChild(card));
+  buttons.forEach(card => {
+    card.classList.remove('is-refreshing');
+    void card.offsetWidth;
+    card.classList.add('is-refreshing');
+  });
+  state.choice.options = buttons.map(card => Number(card.dataset.piece));
+}
+
+function createFlyingChoice(card, piece){
+  const from = card.getBoundingClientRect();
+  const to = piece.el.getBoundingClientRect();
+  const flying = document.createElement('div');
+  const xDen = Math.max(COLS - 1, 1);
+  const yDen = Math.max(ROWS - 1, 1);
+  flying.className = 'flying-choice';
+  flying.style.left = `${from.left}px`;
+  flying.style.top = `${from.top}px`;
+  flying.style.width = `${from.width}px`;
+  flying.style.height = `${from.height}px`;
+  flying.style.backgroundImage = `url(${state.imgUrl})`;
+  flying.style.backgroundSize = `${COLS * 100}% ${ROWS * 100}%`;
+  flying.style.backgroundPosition = `${(piece.c / xDen) * 100}% ${(piece.r / yDen) * 100}%`;
+  document.body.appendChild(flying);
+  card.classList.add('is-flying');
+
+  requestAnimationFrame(() => {
+    flying.style.left = `${to.left}px`;
+    flying.style.top = `${to.top}px`;
+    flying.style.width = `${to.width}px`;
+    flying.style.height = `${to.height}px`;
+    flying.style.borderRadius = '0px';
+  });
+  return flying;
+}
+
+function completeChoiceSelection(card, pieceIndex, flying){
+  flying.remove();
+  card.remove();
+  const piece = state.pieces[pieceIndex];
+  piece.open = true;
+  piece.x = piece.c * cellSize().w;
+  piece.y = piece.r * cellSize().h;
+  position(piece);
+  applyOpenPieceVisual(piece);
+  playRevealAnimation(piece);
+
+  neighbors(pieceIndex).forEach(neighborIndex => {
+    const neighbor = state.pieces[neighborIndex];
+    if(neighbor.open) union(pieceIndex, neighborIndex);
+  });
+  state.choice.nextIndex++;
+  refreshMergedVisuals();
+  resolveAnyOverlaps();
+  saveCurrentPuzzleProgress();
+
+  if(state.choice.nextIndex >= TOTAL){
+    choiceHint.textContent = 'Complete';
+    choiceCards.innerHTML = '';
+    checkWin();
+    return;
+  }
+
+  renderChoiceOptions();
+  statusEl.textContent = 'Choose the card for the next slot.';
+}
+
+function handleChoiceSelection(card){
+  if(GAME_MODE !== 'choice' || state.choice.busy || state.choice.lives <= 0) return;
+  const selectedIndex = Number(card.dataset.piece);
+  const correctIndex = state.choice.nextIndex;
+  state.choice.busy = true;
+
+  if(selectedIndex !== correctIndex){
+    state.choice.lives--;
+    updateLives();
+    card.classList.add('is-wrong');
+    window.setTimeout(() => {
+      card.classList.remove('is-wrong');
+      refreshWrongChoiceOptions();
+      state.choice.busy = false;
+      statusEl.textContent = state.choice.lives > 0
+        ? 'Wrong card. Try again.'
+        : 'Out of lives. Start a new game.';
+      choiceCards.querySelectorAll('button').forEach(option => {
+        option.disabled = state.choice.lives <= 0;
+      });
+      saveCurrentPuzzleProgress();
+    }, 360);
+    return;
+  }
+
+  const flying = createFlyingChoice(card, state.pieces[correctIndex]);
+  window.setTimeout(() => {
+    completeChoiceSelection(card, correctIndex, flying);
+    state.choice.busy = false;
+  }, MOVE_DURATION_MS);
 }
 
 function openPiece(i){
