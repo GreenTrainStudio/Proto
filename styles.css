@@ -475,10 +475,6 @@ button {
   cursor: default;
 }
 
-.choice-card.is-wrong {
-  animation: choice-wrong-return 360ms ease both;
-}
-
 .choice-card.is-refreshing {
   animation: choice-refresh 180ms ease both;
 }
@@ -497,13 +493,31 @@ button {
   background-color: #30384c;
   background-repeat: no-repeat;
   box-shadow: 0 12px 28px rgba(0,0,0,.42);
+  will-change: transform, opacity;
   transition: left var(--move-duration) ease, top var(--move-duration) ease, width var(--move-duration) ease, height var(--move-duration) ease, border-radius var(--move-duration) ease;
 }
 
-@keyframes choice-wrong-return {
-  0% { transform: translateY(0) scale(1); opacity: 1; }
-  45% { transform: translateY(-16px) scale(.88); opacity: .35; }
-  100% { transform: translateY(0) scale(1); opacity: 1; }
+.flying-choice.is-shaking {
+  animation: wrong-choice-shake 420ms ease-in-out both;
+}
+
+.flying-choice.is-disappearing {
+  animation: wrong-choice-disappear 180ms ease-in forwards;
+}
+
+@keyframes wrong-choice-shake {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  15% { transform: translateX(-7px) rotate(-4deg); }
+  30% { transform: translateX(7px) rotate(4deg); }
+  45% { transform: translateX(-6px) rotate(-3deg); }
+  60% { transform: translateX(6px) rotate(3deg); }
+  75% { transform: translateX(-3px) rotate(-1.5deg); }
+  90% { transform: translateX(3px) rotate(1.5deg); }
+}
+
+@keyframes wrong-choice-disappear {
+  from { opacity: 1; transform: scale(1); filter: blur(0); }
+  to { opacity: 0; transform: scale(.82); filter: blur(4px); }
 }
 
 @keyframes choice-refresh {

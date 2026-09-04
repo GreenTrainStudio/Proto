@@ -9,6 +9,8 @@ const INITIAL_OPEN = GAMEPLAY_CONFIG.initialOpen ?? 3;
 const INITIAL_LIVES = Math.max(1, Number(GAMEPLAY_CONFIG.lives) || 3);
 const SNAP = GAMEPLAY_CONFIG.snap;
 const MOVE_DURATION_MS = ANIMATION_CONFIG?.moveDurationMs ?? 300;
+const WRONG_SHAKE_DURATION_MS = 420;
+const WRONG_DISAPPEAR_DURATION_MS = 180;
 const ANIM_ENABLED = ANIMATION_CONFIG?.enabled !== false;
 const PROGRESS_COOKIE = 'jigsawPuzzleProgress';
 const PROGRESS_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
@@ -822,8 +824,15 @@ function refreshWrongChoiceOptions(){
     setChoiceCardVisual(card, replacementIds[replacementIndex++]);
   });
 
-  // Keep the correct card itself, but shuffle the positions of all four cards.
-  shuffle(buttons).forEach(card => choiceCards.appendChild(card));
+  // Keep the correct card itself, but force it into a different slot.
+  const previousCorrectPosition = buttons.indexOf(correctButton);
+  const shuffledButtons = shuffle(buttons);
+  if(shuffledButtons.length > 1 && shuffledButtons.indexOf(correctButton) === previousCorrectPosition){
+    const swapPosition = (previousCorrectPosition + 1) % shuffledButtons.length;
+    [shuffledButtons[previousCorrectPosition], shuffledButtons[swapPosition]] =
+      [shuffledButtons[swapPosition], shuffledButtons[previousCorrectPosition]];
+  }
+  shuffledButtons.forEach(card => choiceCards.appendChild(card));
   buttons.forEach(card => {
     card.classList.remove('is-refreshing');
     void card.offsetWidth;
@@ -832,9 +841,9 @@ function refreshWrongChoiceOptions(){
   state.choice.options = buttons.map(card => Number(card.dataset.piece));
 }
 
-function createFlyingChoice(card, piece){
+function createFlyingChoice(card, imagePiece, targetPiece = imagePiece){
   const from = card.getBoundingClientRect();
-  const to = piece.el.getBoundingClientRect();
+  const to = targetPiece.el.getBoundingClientRect();
   const flying = document.createElement('div');
   const xDen = Math.max(COLS - 1, 1);
   const yDen = Math.max(ROWS - 1, 1);
@@ -845,7 +854,7 @@ function createFlyingChoice(card, piece){
   flying.style.height = `${from.height}px`;
   flying.style.backgroundImage = `url(${state.imgUrl})`;
   flying.style.backgroundSize = `${COLS * 100}% ${ROWS * 100}%`;
-  flying.style.backgroundPosition = `${(piece.c / xDen) * 100}% ${(piece.r / yDen) * 100}%`;
+  flying.style.backgroundPosition = `${(imagePiece.c / xDen) * 100}% ${(imagePiece.r / yDen) * 100}%`;
   document.body.appendChild(flying);
   card.classList.add('is-flying');
 
@@ -857,6 +866,34 @@ function createFlyingChoice(card, piece){
     flying.style.borderRadius = '0px';
   });
   return flying;
+}
+
+function finishWrongChoice(card, flying){
+  flying.remove();
+  // Reuse the same button as one of the refreshed wrong options so the panel
+  // keeps four cards after the animation finishes.
+  card.classList.remove('is-flying');
+  refreshWrongChoiceOptions();
+  state.choice.busy = false;
+  statusEl.textContent = state.choice.lives > 0
+    ? 'Wrong card. Try again.'
+    : 'Out of lives. Start a new game.';
+  choiceCards.querySelectorAll('button').forEach(option => {
+    option.disabled = state.choice.lives <= 0;
+  });
+  saveCurrentPuzzleProgress();
+}
+
+function animateWrongChoice(card, imagePiece, targetPiece){
+  const flying = createFlyingChoice(card, imagePiece, targetPiece);
+  window.setTimeout(() => {
+    flying.classList.add('is-shaking');
+    window.setTimeout(() => {
+      flying.classList.remove('is-shaking');
+      flying.classList.add('is-disappearing');
+      window.setTimeout(() => finishWrongChoice(card, flying), WRONG_DISAPPEAR_DURATION_MS);
+    }, WRONG_SHAKE_DURATION_MS);
+  }, MOVE_DURATION_MS);
 }
 
 function completeChoiceSelection(card, pieceIndex, flying){
@@ -899,19 +936,7 @@ function handleChoiceSelection(card){
   if(selectedIndex !== correctIndex){
     state.choice.lives--;
     updateLives();
-    card.classList.add('is-wrong');
-    window.setTimeout(() => {
-      card.classList.remove('is-wrong');
-      refreshWrongChoiceOptions();
-      state.choice.busy = false;
-      statusEl.textContent = state.choice.lives > 0
-        ? 'Wrong card. Try again.'
-        : 'Out of lives. Start a new game.';
-      choiceCards.querySelectorAll('button').forEach(option => {
-        option.disabled = state.choice.lives <= 0;
-      });
-      saveCurrentPuzzleProgress();
-    }, 360);
+    animateWrongChoice(card, state.pieces[selectedIndex], state.pieces[correctIndex]);
     return;
   }
 
