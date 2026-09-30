@@ -42,18 +42,20 @@
       </header>
 
       <section class="board-area">
-        <div class="board-wrap">
-          <div id="board" class="board"></div>
-        </div>
-      </section>
+        <div class="play-column">
+          <div class="board-wrap">
+            <div id="board" class="board"></div>
+          </div>
 
-      <section id="choiceTray" class="choice-tray" hidden aria-label="Choose the next card">
-        <div class="choice-heading visually-hidden">
-          <span>Choose the next card</span>
-          <span id="choiceHint" class="choice-hint"></span>
+          <section id="choiceTray" class="choice-tray" hidden aria-label="Choose the next card">
+            <div class="choice-heading visually-hidden">
+              <span>Choose the next card</span>
+              <span id="choiceHint" class="choice-hint"></span>
+            </div>
+            <div id="choiceCards" class="choice-cards"></div>
+            <button id="newGameBtn" class="new-game-btn" type="button">New game</button>
+          </section>
         </div>
-        <div id="choiceCards" class="choice-cards"></div>
-        <button id="newGameBtn" class="new-game-btn" type="button">New game</button>
       </section>
     </section>
 

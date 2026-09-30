@@ -484,18 +484,24 @@ button {
 .board-area {
   flex: 1 1 0;
   min-height: 0;
-  padding: calc(143 * var(--u)) calc(31 * var(--u)) calc(142 * var(--u));
+  padding: calc(143 * var(--u)) calc(31 * var(--u)) calc(153 * var(--u));
   display: flex;
   align-items: flex-start;
   justify-content: center;
   container-type: size;
 }
 
-.board-wrap {
+/* Board with the choice cards right under it; both share one width. */
+.play-column {
   --wrap-border: calc(2.774 * var(--u));
+  /* Cards (4:5, a quarter of the board) plus the gap above them. */
+  --tray-reserve: calc(450 * var(--u));
   flex: none;
   /* Full width unless the viewport is too short for a 4:5 board. */
-  width: min(100cqw, calc((100cqh - 2 * var(--wrap-border)) * var(--board-aspect) + 2 * var(--wrap-border)));
+  width: min(100cqw, calc((100cqh - var(--tray-reserve) - 2 * var(--wrap-border)) * var(--board-aspect) + 2 * var(--wrap-border)));
+}
+
+.board-wrap {
   border: var(--wrap-border) solid rgba(255, 219, 192, 0.4);
   border-radius: calc(11.096 * var(--u));
   background: #c3a088;
@@ -684,22 +690,20 @@ button {
 
 /* Choice tray */
 .choice-tray {
-  flex: none;
   position: relative;
-  padding: 0 calc(31 * var(--u)) calc(153 * var(--u));
+  margin-top: calc(155.5 * var(--u));
+  padding: 0 var(--wrap-border);
 }
 
 .choice-cards {
-  height: calc(220 * var(--u));
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  gap: calc(12.3 * var(--u));
 }
 
 .choice-card {
   position: relative;
-  flex: none;
-  width: min(calc(233 * var(--u)), calc(220 * var(--u) * var(--piece-aspect, 1)));
+  flex: 1 1 0;
+  min-width: 0;
   aspect-ratio: var(--piece-aspect, 1 / 1);
   padding: 0;
   border: 0;
