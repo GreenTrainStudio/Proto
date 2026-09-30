@@ -952,7 +952,7 @@ function flyChoiceCard(card, imagePiece, targetPiece = imagePiece){
   const sx = from.width / to.width;
   const sy = from.height / to.height;
   const mid = 0.45;
-  const lift = 1.07;
+  const lift = 1.035;
   const timing = { duration: motionMs(MOVE_DURATION_MS), easing: EASE_FLIGHT };
   const flight = flying.animate([
     { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})` },
@@ -962,9 +962,11 @@ function flyChoiceCard(card, imagePiece, targetPiece = imagePiece){
     },
     { transform: 'none' },
   ], timing);
+  // The shadow is gone just before touchdown so the card settles flat.
   flying.firstChild.animate([
     { opacity: 0 },
-    { opacity: 1, offset: 0.35 },
+    { opacity: 0.85, offset: 0.3 },
+    { opacity: 0, offset: 0.85 },
     { opacity: 0 },
   ], timing);
   return { el: flying, finished: flight.finished };
@@ -1025,8 +1027,16 @@ function playSolvedCelebration(){
   restartClass([board.parentElement], 'is-solved');
 }
 
+// Dissolves the flyer over the opened cell instead of swapping instantly, which
+// hides the small corner and stroke differences between card and cell.
+function releaseFlyer(flying){
+  if(!MOTION_ENABLED) return flying.remove();
+  flying.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: 'ease-out', fill: 'forwards' })
+    .finished.then(() => flying.remove());
+}
+
 function completeChoiceSelection(card, pieceIndex, flying){
-  flying.remove();
+  releaseFlyer(flying);
   card.remove();
   choiceCards.classList.remove('is-busy');
   const piece = state.pieces[pieceIndex];

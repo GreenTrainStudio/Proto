@@ -719,7 +719,7 @@ button {
     transparent 62%);
   transform: translateX(-100%);
   pointer-events: none;
-  animation: piece-sheen 560ms var(--ease-in-out) forwards;
+  animation: piece-sheen 600ms var(--ease-in-out) 90ms forwards;
 }
 
 /* Choice mode placed pieces: outline only on the outer edges of a group */
