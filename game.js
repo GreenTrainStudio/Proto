@@ -15,6 +15,8 @@ const ANIM_ENABLED = ANIMATION_CONFIG?.enabled !== false;
 const REDUCED_MOTION = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
 const MOTION_ENABLED = ANIM_ENABLED && !REDUCED_MOTION;
 const EASE_OUT = 'cubic-bezier(0.22, 1, 0.36, 1)';
+// Softer tail than EASE_OUT so the card doesn't hover over the slot before landing.
+const EASE_FLIGHT = 'cubic-bezier(0.32, 0.72, 0.28, 1)';
 const EASE_IN = 'cubic-bezier(0.55, 0, 1, 0.45)';
 const PROGRESS_COOKIE = 'jigsawPuzzleProgress';
 const PROGRESS_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
@@ -951,7 +953,7 @@ function flyChoiceCard(card, imagePiece, targetPiece = imagePiece){
   const sy = from.height / to.height;
   const mid = 0.45;
   const lift = 1.07;
-  const timing = { duration: motionMs(MOVE_DURATION_MS), easing: EASE_OUT };
+  const timing = { duration: motionMs(MOVE_DURATION_MS), easing: EASE_FLIGHT };
   const flight = flying.animate([
     { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})` },
     {
@@ -997,9 +999,9 @@ async function animateWrongChoice(card, imagePiece, targetPiece){
   const shakeDuration = motionMs(WRONG_SHAKE_DURATION_MS);
   flying.querySelector('.flying-choice-tint').animate([
     { opacity: 0 },
-    { opacity: 1, offset: 0.2 },
+    { opacity: 1, offset: 0.4 },
     { opacity: 1 },
-  ], { duration: shakeDuration, fill: 'forwards' });
+  ], { duration: shakeDuration, easing: 'ease-out', fill: 'forwards' });
   await flying.animate([
     { transform: 'none' },
     { transform: 'translateX(-9%) rotate(-2deg)', offset: 0.16 },
@@ -1133,9 +1135,9 @@ function playRevealAnimation(piece){
   if(!MOTION_ENABLED) return;
   const el = piece.el;
   restartClass([el], 'revealing');
-  // The sheen runs on ::before; wait for the piece's own animation.
+  // Choice mode only animates the ::before highlight; classic mode the piece.
   const onEnd = (event) => {
-    if(event.target !== el || event.pseudoElement) return;
+    if(event.target !== el || !['piece-sheen', 'piece-reveal'].includes(event.animationName)) return;
     el.classList.remove('revealing');
     el.removeEventListener('animationend', onEnd);
   };
