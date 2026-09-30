@@ -452,7 +452,11 @@ function restoreSavedPuzzleState(saved){
     state.choice.lives = Number.isFinite(savedLives)
       ? Math.max(0, Math.min(INITIAL_LIVES, savedLives))
       : INITIAL_LIVES;
+    const { w: cw, h: ch } = cellSize();
     state.pieces.forEach(piece => {
+      piece.x = piece.c * cw;
+      piece.y = piece.r * ch;
+      position(piece);
       piece.open = piece.i < state.choice.nextIndex;
       if(piece.open) applyOpenPieceVisual(piece);
       else {
@@ -711,6 +715,7 @@ async function init(){
     const el=document.createElement('div');
     el.className='piece hidden';
     el.dataset.i=i;
+    el.dataset.edge = `${r===0?'t':''}${c===COLS-1?'r':''}${r===ROWS-1?'b':''}${c===0?'l':''}`;
 
     const slot = isChoiceMode ? i : shuffledSlots[i];
     const [slotR, slotC] = rc(slot);
@@ -774,7 +779,18 @@ async function init(){
 function updateLives(){
   if(GAME_MODE !== 'choice') return;
   const lives = Math.max(0, state.choice.lives);
-  livesEl.textContent = `${'♥'.repeat(lives)}${'♡'.repeat(Math.max(0, INITIAL_LIVES - lives))}`;
+  livesEl.innerHTML = '';
+  for(let i=0;i<INITIAL_LIVES;i++){
+    const isOn = i < lives;
+    const heart = document.createElement('span');
+    heart.className = `heart ${isOn ? 'is-on' : 'is-off'}`;
+    const img = document.createElement('img');
+    img.src = `images/ui/heart-${isOn ? 'on' : 'off'}.svg`;
+    img.alt = '';
+    heart.appendChild(img);
+    livesEl.appendChild(heart);
+  }
+  gameScreen.classList.toggle('is-out', lives <= 0);
   livesEl.setAttribute('aria-label', `${lives} lives remaining`);
 }
 
@@ -791,13 +807,9 @@ function updateChoiceTarget(){
 
 function setChoiceCardVisual(card, pieceIndex){
   const piece = state.pieces[pieceIndex];
-  const xDen = Math.max(COLS - 1, 1);
-  const yDen = Math.max(ROWS - 1, 1);
   card.dataset.piece = String(pieceIndex);
   card.setAttribute('aria-label', `Card ${pieceIndex + 1}`);
-  card.style.backgroundImage = `url(${state.imgUrl})`;
-  card.style.backgroundSize = `${COLS * 100}% ${ROWS * 100}%`;
-  card.style.backgroundPosition = `${(piece.c / xDen) * 100}% ${(piece.r / yDen) * 100}%`;
+  applyPieceBackground(card, piece);
 }
 
 function createChoiceCard(pieceIndex){
@@ -866,16 +878,12 @@ function createFlyingChoice(card, imagePiece, targetPiece = imagePiece){
   const from = card.getBoundingClientRect();
   const to = targetPiece.el.getBoundingClientRect();
   const flying = document.createElement('div');
-  const xDen = Math.max(COLS - 1, 1);
-  const yDen = Math.max(ROWS - 1, 1);
   flying.className = 'flying-choice';
   flying.style.left = `${from.left}px`;
   flying.style.top = `${from.top}px`;
   flying.style.width = `${from.width}px`;
   flying.style.height = `${from.height}px`;
-  flying.style.backgroundImage = `url(${state.imgUrl})`;
-  flying.style.backgroundSize = `${COLS * 100}% ${ROWS * 100}%`;
-  flying.style.backgroundPosition = `${(imagePiece.c / xDen) * 100}% ${(imagePiece.r / yDen) * 100}%`;
+  applyPieceBackground(flying, imagePiece);
   document.body.appendChild(flying);
   card.classList.add('is-flying');
 
@@ -989,11 +997,33 @@ function revealAllPieces(){
 function applyOpenPieceVisual(piece){
   piece.el.classList.remove('hidden');
   piece.el.classList.add('open');
-  piece.el.style.backgroundImage=`url(${state.imgUrl})`;
-  piece.el.style.backgroundSize=`${COLS * 100}% ${ROWS * 100}%`;
-  const xDen = Math.max(COLS - 1, 1);
-  const yDen = Math.max(ROWS - 1, 1);
-  piece.el.style.backgroundPosition=`${(piece.c/xDen)*100}% ${(piece.r/yDen)*100}%`;
+  applyPieceBackground(piece.el, piece);
+}
+
+// Paints one board cell of the image. The image covers the whole board
+// (like background-size: cover), so percentages are relative to one cell and
+// work for any element with the cell's aspect ratio (pieces, cards, flyers).
+function applyPieceBackground(el, piece){
+  el.style.backgroundImage = `url(${state.imgUrl})`;
+  const { w: cw, h: ch } = cellSize();
+  if(!state.imgW || !state.imgH || !cw || !ch){
+    const xDen = Math.max(COLS - 1, 1);
+    const yDen = Math.max(ROWS - 1, 1);
+    el.style.backgroundSize = `${COLS * 100}% ${ROWS * 100}%`;
+    el.style.backgroundPosition = `${(piece.c / xDen) * 100}% ${(piece.r / yDen) * 100}%`;
+    return;
+  }
+  const bw = cw * COLS;
+  const bh = ch * ROWS;
+  const scale = Math.max(bw / state.imgW, bh / state.imgH);
+  const dw = state.imgW * scale;
+  const dh = state.imgH * scale;
+  const offX = (bw - dw) / 2 - piece.c * cw;
+  const offY = (bh - dh) / 2 - piece.r * ch;
+  const posX = Math.abs(cw - dw) < 0.5 ? 0 : offX / (cw - dw) * 100;
+  const posY = Math.abs(ch - dh) < 0.5 ? 0 : offY / (ch - dh) * 100;
+  el.style.backgroundSize = `${dw / cw * 100}% ${dh / ch * 100}%`;
+  el.style.backgroundPosition = `${posX}% ${posY}%`;
 }
 
 function playRevealAnimation(piece){
@@ -1015,6 +1045,8 @@ function applyImageAspectToBoard(){
     const img = new Image();
     img.onload = () => {
       if(img.naturalWidth && img.naturalHeight){
+        state.imgW = img.naturalWidth;
+        state.imgH = img.naturalHeight;
         document.documentElement.style.setProperty('--board-aspect', `${img.naturalWidth} / ${img.naturalHeight}`);
       }
       resolve();
@@ -1434,12 +1466,14 @@ function refreshMergedVisuals(){
   for(const p of state.pieces){
     if(!p.open){
       p.el.classList.remove('merged');
+      p.el.dataset.join = '';
       continue;
     }
     const root = find(p.i);
     const sameGroupNeighbors = neighbors(p.i).filter(n=>state.pieces[n].open && find(n)===root);
     const isMerged = sameGroupNeighbors.length > 0;
     p.el.classList.toggle('merged', isMerged);
+    p.el.dataset.join = '';
 
     p.el.style.borderTopColor = '';
     p.el.style.borderRightColor = '';
@@ -1466,6 +1500,8 @@ function refreshMergedVisuals(){
     const connectedRight = right && right.open && find(right.i)===root;
     const connectedBottom = bottom && bottom.open && find(bottom.i)===root;
     const connectedLeft = left && left.open && find(left.i)===root;
+    p.el.dataset.join = `${connectedTop?'t':''}${connectedRight?'r':''}${connectedBottom?'b':''}${connectedLeft?'l':''}`;
+    if(GAME_MODE === 'choice') continue;
 
     if(connectedTop){ p.el.style.borderTopWidth = '0px'; p.el.style.borderTopColor = 'transparent'; }
     if(connectedRight){ p.el.style.borderRightWidth = '0px'; p.el.style.borderRightColor = 'transparent'; }

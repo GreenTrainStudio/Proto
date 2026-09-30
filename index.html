@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Jigsaw Solitaire Puzzle 7x7</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans:wdth,wght@87.5,700&display=swap" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -18,23 +21,39 @@
     </section>
 
     <section id="gameScreen" class="game-screen" hidden>
-      <section class="controls">
-        <button id="backToMenuBtn" type="button">Menu</button>
-        <button id="newGameBtn" type="button">New game</button>
-        <span id="status"></span>
-        <span id="lives" class="lives" hidden aria-live="polite"></span>
-      </section>
+      <header class="controls">
+        <button id="backToMenuBtn" class="icon-btn" type="button" aria-label="Menu">
+          <img src="images/ui/back-arrow.svg" alt="" class="icon-btn-arrow" />
+        </button>
+        <button id="noAdBtn" class="icon-btn no-ad-btn" type="button" aria-label="Remove ads">
+          <span class="no-ad-strike" aria-hidden="true"></span>
+          <span class="no-ad-label">AD</span>
+        </button>
+        <div id="lives" class="lives" hidden aria-live="polite"></div>
+        <button id="hintBtn" class="hint-btn" type="button" aria-label="Hint">
+          <span class="hint-frame" aria-hidden="true"></span>
+          <img src="images/ui/lamp.svg" alt="" class="hint-lamp" />
+          <span class="hint-counter">8</span>
+        </button>
+        <button id="settingsBtn" class="icon-btn" type="button" aria-label="Settings">
+          <img src="images/ui/settings.svg" alt="" class="icon-btn-settings" />
+        </button>
+        <span id="status" class="visually-hidden" aria-live="polite"></span>
+      </header>
 
-      <section class="board-wrap">
-        <div id="board" class="board"></div>
+      <section class="board-area">
+        <div class="board-wrap">
+          <div id="board" class="board"></div>
+        </div>
       </section>
 
       <section id="choiceTray" class="choice-tray" hidden aria-label="Choose the next card">
-        <div class="choice-heading">
+        <div class="choice-heading visually-hidden">
           <span>Choose the next card</span>
           <span id="choiceHint" class="choice-hint"></span>
         </div>
         <div id="choiceCards" class="choice-cards"></div>
+        <button id="newGameBtn" class="new-game-btn" type="button">New game</button>
       </section>
     </section>
 
