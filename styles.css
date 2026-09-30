@@ -3,7 +3,8 @@
   --u: calc(min(100vw, 430px, 100dvh * 1044 / 2436) / 1044);
   --cols: 7;
   --rows: 7;
-  --board-aspect: 1 / 1;
+  /* All puzzle images are 4:5, so the board is too. */
+  --board-aspect: 4 / 5;
   --move-duration: 300ms;
 }
 
@@ -485,12 +486,16 @@ button {
   min-height: 0;
   padding: calc(143 * var(--u)) calc(31 * var(--u)) calc(142 * var(--u));
   display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  container-type: size;
 }
 
 .board-wrap {
   --wrap-border: calc(2.774 * var(--u));
-  flex: 1 1 auto;
-  min-width: 0;
+  flex: none;
+  /* Full width unless the viewport is too short for a 4:5 board. */
+  width: min(100cqw, calc((100cqh - 2 * var(--wrap-border)) * var(--board-aspect) + 2 * var(--wrap-border)));
   border: var(--wrap-border) solid rgba(255, 219, 192, 0.4);
   border-radius: calc(11.096 * var(--u));
   background: #c3a088;
@@ -499,7 +504,7 @@ button {
 .board {
   position: relative;
   width: 100%;
-  height: 100%;
+  aspect-ratio: var(--board-aspect);
   touch-action: none;
 }
 

@@ -1047,7 +1047,6 @@ function applyImageAspectToBoard(){
       if(img.naturalWidth && img.naturalHeight){
         state.imgW = img.naturalWidth;
         state.imgH = img.naturalHeight;
-        document.documentElement.style.setProperty('--board-aspect', `${img.naturalWidth} / ${img.naturalHeight}`);
       }
       resolve();
     };
