@@ -314,6 +314,18 @@ async function blobToImageUrl(blob){
 }
 
 async function loadFullAsset(puzzle){
+  try {
+    return await fetchFullAsset(puzzle);
+  } catch(e) {
+    // fetch() is blocked when the game is opened via file://; load the image directly.
+    const loaded = await canLoadImage(puzzle.image);
+    if(!loaded) throw e;
+    setLoadingProgress(100);
+    return puzzle.image;
+  }
+}
+
+async function fetchFullAsset(puzzle){
   const assetUrl = puzzle.image;
   setLoadingProgress(8);
 
@@ -353,6 +365,15 @@ function clearThumbObjectUrls(){
 }
 
 async function loadThumbAsset(puzzle){
+  try {
+    return await fetchThumbAsset(puzzle);
+  } catch {
+    // fetch() is blocked when the game is opened via file://; use the thumb directly.
+    return puzzle.thumb || '';
+  }
+}
+
+async function fetchThumbAsset(puzzle){
   const thumbUrl = puzzle.thumb;
   if(!thumbUrl) return '';
 
