@@ -9,9 +9,13 @@ const INITIAL_OPEN = GAMEPLAY_CONFIG.initialOpen ?? 3;
 const INITIAL_LIVES = Math.max(1, Number(GAMEPLAY_CONFIG.lives) || 3);
 const SNAP = GAMEPLAY_CONFIG.snap;
 const MOVE_DURATION_MS = ANIMATION_CONFIG?.moveDurationMs ?? 300;
-const WRONG_SHAKE_DURATION_MS = 420;
-const WRONG_DISAPPEAR_DURATION_MS = 180;
+const WRONG_SHAKE_DURATION_MS = 380;
+const WRONG_EXIT_DURATION_MS = 220;
 const ANIM_ENABLED = ANIMATION_CONFIG?.enabled !== false;
+const REDUCED_MOTION = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+const MOTION_ENABLED = ANIM_ENABLED && !REDUCED_MOTION;
+const EASE_OUT = 'cubic-bezier(0.22, 1, 0.36, 1)';
+const EASE_IN = 'cubic-bezier(0.55, 0, 1, 0.45)';
 const PROGRESS_COOKIE = 'jigsawPuzzleProgress';
 const PROGRESS_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 const PROGRESS_STORAGE = 'jigsawPuzzleProgress.v2';
@@ -84,6 +88,35 @@ function getSnapDistance(){
 
 function setAnimationEnabled(enabled){
   state.pieces.forEach(p=>p.el.classList.toggle('no-anim', !enabled));
+}
+
+function motionMs(ms){
+  return MOTION_ENABLED ? ms : 0;
+}
+
+// Restarts a class-driven CSS animation on each element.
+function restartClass(elements, className){
+  elements.forEach(el => el.classList.remove(className));
+  if(elements.length) void elements[0].offsetWidth;
+  elements.forEach(el => el.classList.add(className));
+}
+
+function playEntrance(screen){
+  if(!MOTION_ENABLED) return;
+  restartClass([screen], 'is-entering');
+  window.clearTimeout(screen.enterTimer);
+  screen.enterTimer = window.setTimeout(() => screen.classList.remove('is-entering'), 1400);
+}
+
+function dealChoiceCards(delayMs = 0){
+  if(!MOTION_ENABLED) return;
+  const cards = [...choiceCards.children];
+  cards.forEach((card, i) => {
+    card.style.setProperty('--i', String(i));
+    card.style.setProperty('--deal-delay', `${delayMs}ms`);
+    card.addEventListener('animationend', () => card.classList.remove('is-dealing'), { once: true });
+  });
+  restartClass(cards, 'is-dealing');
 }
 
 function gridCellFromPos(x, y){
@@ -576,6 +609,7 @@ async function renderMenu(){
     const puzzle = puzzles[i];
     const card = document.createElement('div');
     card.className = 'puzzle-card';
+    card.style.setProperty('--i', String(Math.min(i, 8)));
     if(puzzle.premium) card.classList.add('is-premium');
     if(puzzle.locked) card.classList.add('is-locked');
     card.setAttribute('role', 'button');
@@ -631,6 +665,12 @@ async function renderMenu(){
   setLoadingProgress(100);
   hideLoadingScreen();
   menuScreen.hidden = false;
+  playEntrance(menuScreen);
+}
+
+function playGameEntrance(){
+  playEntrance(gameScreen);
+  dealChoiceCards(200);
 }
 
 async function selectPuzzle(puzzle){
@@ -642,6 +682,7 @@ async function selectPuzzle(puzzle){
     document.body.classList.add('playing');
     await init();
     hideLoadingScreen();
+    playGameEntrance();
   } catch(e) {
     hideLoadingScreen();
     gameScreen.hidden = true;
@@ -659,6 +700,7 @@ async function restartCurrentPuzzle(){
     await init();
   } finally {
     hideLoadingScreen();
+    playGameEntrance();
   }
 }
 
@@ -695,8 +737,11 @@ async function init(){
   document.body.classList.toggle('choice-mode', isChoiceMode);
   gameScreen.classList.toggle('choice-game', isChoiceMode);
   livesEl.hidden = !isChoiceMode;
+  livesEl.innerHTML = '';
   choiceTray.hidden = !isChoiceMode;
   choiceCards.innerHTML = '';
+  choiceCards.classList.remove('is-busy');
+  board.parentElement.classList.remove('is-solved');
   try { state.imgUrl = await resolveImage(); }
   catch(e){ statusEl.textContent=e.message; return; }
   setLoadingProgress(90);
@@ -779,6 +824,8 @@ async function init(){
 function updateLives(){
   if(GAME_MODE !== 'choice') return;
   const lives = Math.max(0, state.choice.lives);
+  const shownLives = livesEl.querySelectorAll('.heart.is-on').length;
+  const animateLoss = MOTION_ENABLED && livesEl.childElementCount === INITIAL_LIVES && lives < shownLives;
   livesEl.innerHTML = '';
   for(let i=0;i<INITIAL_LIVES;i++){
     const isOn = i < lives;
@@ -788,6 +835,15 @@ function updateLives(){
     img.src = `images/ui/heart-${isOn ? 'on' : 'off'}.svg`;
     img.alt = '';
     heart.appendChild(img);
+    if(animateLoss && i >= lives && i < shownLives){
+      heart.classList.add('is-lost');
+      const ghost = document.createElement('img');
+      ghost.className = 'heart-ghost';
+      ghost.src = 'images/ui/heart-on.svg';
+      ghost.alt = '';
+      ghost.addEventListener('animationend', () => ghost.remove(), { once: true });
+      heart.appendChild(ghost);
+    }
     livesEl.appendChild(heart);
   }
   gameScreen.classList.toggle('is-out', lives <= 0);
@@ -839,6 +895,7 @@ function renderChoiceOptions(){
   choiceCards.querySelectorAll('button').forEach(card => {
     card.disabled = state.choice.lives <= 0;
   });
+  dealChoiceCards();
 }
 
 function refreshWrongChoiceOptions(){
@@ -866,35 +923,49 @@ function refreshWrongChoiceOptions(){
       [shuffledButtons[swapPosition], shuffledButtons[previousCorrectPosition]];
   }
   shuffledButtons.forEach(card => choiceCards.appendChild(card));
-  buttons.forEach(card => {
-    card.classList.remove('is-refreshing');
-    void card.offsetWidth;
-    card.classList.add('is-refreshing');
-  });
+  dealChoiceCards();
   state.choice.options = buttons.map(card => Number(card.dataset.piece));
 }
 
-function createFlyingChoice(card, imagePiece, targetPiece = imagePiece){
+// FLIP flight: the flyer is laid out once at the target cell and animated in
+// from the card with a transform only. It lifts slightly mid-air (scale plus a
+// soft shadow) and settles without overshoot so the hand-off to the cell is
+// seamless.
+function flyChoiceCard(card, imagePiece, targetPiece = imagePiece){
   const from = card.getBoundingClientRect();
   const to = targetPiece.el.getBoundingClientRect();
   const flying = document.createElement('div');
   flying.className = 'flying-choice';
-  flying.style.left = `${from.left}px`;
-  flying.style.top = `${from.top}px`;
-  flying.style.width = `${from.width}px`;
-  flying.style.height = `${from.height}px`;
+  flying.style.left = `${to.left}px`;
+  flying.style.top = `${to.top}px`;
+  flying.style.width = `${to.width}px`;
+  flying.style.height = `${to.height}px`;
+  flying.innerHTML = '<span class="flying-choice-shadow"></span><span class="flying-choice-tint"></span>';
   applyPieceBackground(flying, imagePiece);
   document.body.appendChild(flying);
   card.classList.add('is-flying');
 
-  requestAnimationFrame(() => {
-    flying.style.left = `${to.left}px`;
-    flying.style.top = `${to.top}px`;
-    flying.style.width = `${to.width}px`;
-    flying.style.height = `${to.height}px`;
-    flying.style.borderRadius = '0px';
-  });
-  return flying;
+  const dx = (from.left + from.width / 2) - (to.left + to.width / 2);
+  const dy = (from.top + from.height / 2) - (to.top + to.height / 2);
+  const sx = from.width / to.width;
+  const sy = from.height / to.height;
+  const mid = 0.45;
+  const lift = 1.07;
+  const timing = { duration: motionMs(MOVE_DURATION_MS), easing: EASE_OUT };
+  const flight = flying.animate([
+    { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})` },
+    {
+      offset: mid,
+      transform: `translate(${dx * (1 - mid)}px, ${dy * (1 - mid)}px) scale(${(sx + (1 - sx) * mid) * lift}, ${(sy + (1 - sy) * mid) * lift})`,
+    },
+    { transform: 'none' },
+  ], timing);
+  flying.firstChild.animate([
+    { opacity: 0 },
+    { opacity: 1, offset: 0.35 },
+    { opacity: 0 },
+  ], timing);
+  return { el: flying, finished: flight.finished };
 }
 
 function finishWrongChoice(card, flying){
@@ -902,6 +973,7 @@ function finishWrongChoice(card, flying){
   // Reuse the same button as one of the refreshed wrong options so the panel
   // keeps four cards after the animation finishes.
   card.classList.remove('is-flying');
+  choiceCards.classList.remove('is-busy');
   refreshWrongChoiceOptions();
   state.choice.busy = false;
   statusEl.textContent = state.choice.lives > 0
@@ -913,21 +985,48 @@ function finishWrongChoice(card, flying){
   saveCurrentPuzzleProgress();
 }
 
-function animateWrongChoice(card, imagePiece, targetPiece){
-  const flying = createFlyingChoice(card, imagePiece, targetPiece);
-  window.setTimeout(() => {
-    flying.classList.add('is-shaking');
-    window.setTimeout(() => {
-      flying.classList.remove('is-shaking');
-      flying.classList.add('is-disappearing');
-      window.setTimeout(() => finishWrongChoice(card, flying), WRONG_DISAPPEAR_DURATION_MS);
-    }, WRONG_SHAKE_DURATION_MS);
-  }, MOVE_DURATION_MS);
+// Lands on the slot, flushes red with a damped shake, then drops away.
+async function animateWrongChoice(card, imagePiece, targetPiece){
+  const pieces = state.pieces;
+  const flight = flyChoiceCard(card, imagePiece, targetPiece);
+  const flying = flight.el;
+  await flight.finished;
+  if(state.pieces !== pieces) return flying.remove();
+  updateLives();
+
+  const shakeDuration = motionMs(WRONG_SHAKE_DURATION_MS);
+  flying.querySelector('.flying-choice-tint').animate([
+    { opacity: 0 },
+    { opacity: 1, offset: 0.2 },
+    { opacity: 1 },
+  ], { duration: shakeDuration, fill: 'forwards' });
+  await flying.animate([
+    { transform: 'none' },
+    { transform: 'translateX(-9%) rotate(-2deg)', offset: 0.16 },
+    { transform: 'translateX(7%) rotate(1.5deg)', offset: 0.36 },
+    { transform: 'translateX(-4%) rotate(-0.8deg)', offset: 0.58 },
+    { transform: 'translateX(1.5%)', offset: 0.8 },
+    { transform: 'none' },
+  ], { duration: shakeDuration, easing: 'ease-out' }).finished;
+  if(state.pieces !== pieces) return flying.remove();
+
+  await flying.animate([
+    { opacity: 1, transform: 'none' },
+    { opacity: 0, transform: 'translateY(12%) scale(0.86)' },
+  ], { duration: motionMs(WRONG_EXIT_DURATION_MS), easing: EASE_IN, fill: 'forwards' }).finished;
+  if(state.pieces !== pieces) return flying.remove();
+  finishWrongChoice(card, flying);
+}
+
+function playSolvedCelebration(){
+  if(!MOTION_ENABLED) return;
+  restartClass([board.parentElement], 'is-solved');
 }
 
 function completeChoiceSelection(card, pieceIndex, flying){
   flying.remove();
   card.remove();
+  choiceCards.classList.remove('is-busy');
   const piece = state.pieces[pieceIndex];
   piece.open = true;
   piece.x = piece.c * cellSize().w;
@@ -949,6 +1048,7 @@ function completeChoiceSelection(card, pieceIndex, flying){
     choiceHint.textContent = 'Complete';
     choiceCards.innerHTML = '';
     checkWin();
+    playSolvedCelebration();
     return;
   }
 
@@ -961,19 +1061,22 @@ function handleChoiceSelection(card){
   const selectedIndex = Number(card.dataset.piece);
   const correctIndex = state.choice.nextIndex;
   state.choice.busy = true;
+  choiceCards.classList.add('is-busy');
 
   if(selectedIndex !== correctIndex){
+    // Hearts update once the card lands and the mistake is shown.
     state.choice.lives--;
-    updateLives();
     animateWrongChoice(card, state.pieces[selectedIndex], state.pieces[correctIndex]);
     return;
   }
 
-  const flying = createFlyingChoice(card, state.pieces[correctIndex]);
-  window.setTimeout(() => {
-    completeChoiceSelection(card, correctIndex, flying);
+  const pieces = state.pieces;
+  const flight = flyChoiceCard(card, state.pieces[correctIndex]);
+  flight.finished.then(() => {
+    if(state.pieces !== pieces) return flight.el.remove();
+    completeChoiceSelection(card, correctIndex, flight.el);
     state.choice.busy = false;
-  }, MOVE_DURATION_MS);
+  });
 }
 
 function openPiece(i){
@@ -1027,12 +1130,16 @@ function applyPieceBackground(el, piece){
 }
 
 function playRevealAnimation(piece){
-  piece.el.classList.remove('revealing');
-  void piece.el.offsetWidth;
-  piece.el.classList.add('revealing');
-  piece.el.addEventListener('animationend', () => {
-    piece.el.classList.remove('revealing');
-  }, { once: true });
+  if(!MOTION_ENABLED) return;
+  const el = piece.el;
+  restartClass([el], 'revealing');
+  // The sheen runs on ::before; wait for the piece's own animation.
+  const onEnd = (event) => {
+    if(event.target !== el || event.pseudoElement) return;
+    el.classList.remove('revealing');
+    el.removeEventListener('animationend', onEnd);
+  };
+  el.addEventListener('animationend', onEnd);
 }
 
 function applySliceConfigToLayout(){
