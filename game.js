@@ -137,7 +137,7 @@ function thumbnailPathForImage(path = ''){
   const normalized = normalizeImagePath(path);
   const file = normalized.split('/').pop() || '';
   const stem = file.replace(/\.[^.]+$/, '');
-  return `images/thumbs/${stem}.webp`;
+  return `images/thumbs/${stem}.jpg`;
 }
 
 function normalizePuzzleEntry(entry){
