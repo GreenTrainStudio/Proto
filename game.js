@@ -1027,10 +1027,18 @@ function playSolvedCelebration(){
   restartClass([board.parentElement], 'is-solved');
 }
 
+// Mirrors the cell's CSS piece-pop so the two stay aligned while dissolving.
+const PIECE_POP_KEYFRAMES = [
+  { transform: 'scale(1)', easing: 'cubic-bezier(0.2, 0.7, 0.3, 1)' },
+  { transform: 'scale(1.045)', offset: 0.32, easing: 'cubic-bezier(0.45, 0, 0.25, 1)' },
+  { transform: 'scale(1)' },
+];
+
 // Dissolves the flyer over the opened cell instead of swapping instantly, which
 // hides the small corner and stroke differences between card and cell.
 function releaseFlyer(flying){
   if(!MOTION_ENABLED) return flying.remove();
+  flying.animate(PIECE_POP_KEYFRAMES, { duration: 380 });
   flying.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: 'ease-out', fill: 'forwards' })
     .finished.then(() => flying.remove());
 }
