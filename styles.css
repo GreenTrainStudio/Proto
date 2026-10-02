@@ -666,7 +666,8 @@ button {
   background: transparent;
   box-shadow: inset 0 0 0 calc(3.699 * var(--u)) #fecf32;
   overflow: hidden;
-  animation: target-in 560ms var(--ease-spring) backwards;
+  /* Waits for the neighbouring piece to settle, then fades in without overshoot. */
+  animation: target-in 420ms var(--ease-out) 140ms backwards;
 }
 
 .choice-game .piece.choice-target::before {
@@ -702,10 +703,11 @@ button {
   animation: target-breathe 2.4s var(--ease-in-out) 600ms infinite;
 }
 
-/* Landing: a quick outward pop (no dip, so no pause) and a light sweep. */
+/* Landing: the scale happens in flight (see flyChoiceCard), so the cell
+   itself stays still and only a light sweep crosses it. */
 .choice-game .piece.open.revealing {
   overflow: hidden;
-  animation: piece-pop 380ms linear;
+  animation: none;
 }
 
 /* Overlay blending brightens the picture itself instead of washing it white. */
@@ -713,16 +715,20 @@ button {
   content: "";
   position: absolute;
   inset: 0;
+  /* Wide, low band with long falloff; fades in and out so it never pops. */
   background: linear-gradient(115deg,
-    transparent 22%,
-    rgba(255, 255, 255, 0.35) 40%,
-    rgba(255, 255, 255, 0.95) 50%,
-    rgba(255, 255, 255, 0.35) 60%,
-    transparent 78%);
+    transparent 14%,
+    rgba(255, 255, 255, 0.12) 30%,
+    rgba(255, 255, 255, 0.42) 42%,
+    rgba(255, 255, 255, 0.7) 50%,
+    rgba(255, 255, 255, 0.42) 58%,
+    rgba(255, 255, 255, 0.12) 70%,
+    transparent 86%);
   mix-blend-mode: overlay;
+  opacity: 0;
   transform: translateX(-100%);
   pointer-events: none;
-  animation: piece-sheen 680ms var(--ease-in-out) 60ms forwards;
+  animation: piece-glint 950ms var(--ease-in-out) 120ms forwards;
 }
 
 /* Choice mode placed pieces: outline only on the outer edges of a group */
@@ -760,7 +766,7 @@ button {
 
 .choice-game .piece.open::after,
 .choice-card::after,
-.flying-choice::after {
+.flying-choice-face::after {
   content: "";
   position: absolute;
   --ht: calc(3.699 * var(--u));
@@ -893,11 +899,25 @@ button {
   pointer-events: none;
   border: 0;
   border-radius: calc(8.322 * var(--u));
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+.flying-choice-lift,
+.flying-choice-face {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.flying-choice-lift {
+  will-change: transform;
+}
+
+.flying-choice-face {
   background-color: #291f1e;
   background-repeat: no-repeat;
-  box-shadow: inset 0 0 0 calc(1.849 * var(--u)) rgba(0, 0, 0, 0.5);
-  transform-origin: center;
-  will-change: transform;
+  overflow: hidden;
 }
 
 .flying-choice-shadow,
@@ -976,7 +996,7 @@ button {
 }
 
 @keyframes target-in {
-  from { transform: scale(0.86); opacity: 0.4; }
+  from { transform: scale(0.94); opacity: 0; }
 }
 
 @keyframes target-breathe {
@@ -984,10 +1004,11 @@ button {
   50% { transform: translate(-50%, -50%) scale(1.08); }
 }
 
-@keyframes piece-pop {
-  0% { transform: scale(1); animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1); }
-  32% { transform: scale(1.045); animation-timing-function: cubic-bezier(0.45, 0, 0.25, 1); }
-  100% { transform: scale(1); }
+@keyframes piece-glint {
+  0% { opacity: 0; transform: translateX(-100%); }
+  25% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(100%); }
 }
 
 @keyframes piece-sheen {

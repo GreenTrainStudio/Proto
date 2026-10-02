@@ -16,7 +16,7 @@ const REDUCED_MOTION = window.matchMedia?.('(prefers-reduced-motion: reduce)').m
 const MOTION_ENABLED = ANIM_ENABLED && !REDUCED_MOTION;
 const EASE_OUT = 'cubic-bezier(0.22, 1, 0.36, 1)';
 // Softer tail than EASE_OUT so the card doesn't hover over the slot before landing.
-const EASE_FLIGHT = 'cubic-bezier(0.32, 0.72, 0.28, 1)';
+const EASE_FLIGHT = 'cubic-bezier(0.4, 0.1, 0.2, 1)';
 const EASE_IN = 'cubic-bezier(0.55, 0, 1, 0.45)';
 const PROGRESS_COOKIE = 'jigsawPuzzleProgress';
 const PROGRESS_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
@@ -930,9 +930,9 @@ function refreshWrongChoiceOptions(){
 }
 
 // FLIP flight: the flyer is laid out once at the target cell and animated in
-// from the card with a transform only. It lifts slightly mid-air (scale plus a
-// soft shadow) and settles without overshoot so the hand-off to the cell is
-// seamless.
+// from the card with transforms only. Three layers keep each motion smooth on
+// its own curve: the outer element travels, the inner one lifts (scales up and
+// gently sets down to exactly 1 at touchdown), the shadow fades out before it.
 function flyChoiceCard(card, imagePiece, targetPiece = imagePiece){
   const from = card.getBoundingClientRect();
   const to = targetPiece.el.getBoundingClientRect();
@@ -942,8 +942,9 @@ function flyChoiceCard(card, imagePiece, targetPiece = imagePiece){
   flying.style.top = `${to.top}px`;
   flying.style.width = `${to.width}px`;
   flying.style.height = `${to.height}px`;
-  flying.innerHTML = '<span class="flying-choice-shadow"></span><span class="flying-choice-tint"></span>';
-  applyPieceBackground(flying, imagePiece);
+  flying.innerHTML = '<span class="flying-choice-lift"><span class="flying-choice-shadow"></span><span class="flying-choice-face"><span class="flying-choice-tint"></span></span></span>';
+  const lift = flying.firstChild;
+  applyPieceBackground(lift.querySelector('.flying-choice-face'), imagePiece);
   document.body.appendChild(flying);
   card.classList.add('is-flying');
 
@@ -951,24 +952,22 @@ function flyChoiceCard(card, imagePiece, targetPiece = imagePiece){
   const dy = (from.top + from.height / 2) - (to.top + to.height / 2);
   const sx = from.width / to.width;
   const sy = from.height / to.height;
-  const mid = 0.45;
-  const lift = 1.035;
-  const timing = { duration: motionMs(MOVE_DURATION_MS), easing: EASE_FLIGHT };
+  const duration = motionMs(MOVE_DURATION_MS);
   const flight = flying.animate([
     { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})` },
-    {
-      offset: mid,
-      transform: `translate(${dx * (1 - mid)}px, ${dy * (1 - mid)}px) scale(${(sx + (1 - sx) * mid) * lift}, ${(sy + (1 - sy) * mid) * lift})`,
-    },
     { transform: 'none' },
-  ], timing);
-  // The shadow is gone just before touchdown so the card settles flat.
-  flying.firstChild.animate([
+  ], { duration, easing: EASE_FLIGHT });
+  lift.animate([
+    { transform: 'scale(1)', easing: 'cubic-bezier(0.33, 0, 0.4, 1)' },
+    { transform: 'scale(1.045)', offset: 0.45, easing: 'cubic-bezier(0.5, 0, 0.3, 1)' },
+    { transform: 'scale(1)' },
+  ], { duration });
+  lift.firstChild.animate([
     { opacity: 0 },
-    { opacity: 0.85, offset: 0.3 },
-    { opacity: 0, offset: 0.85 },
+    { opacity: 0.8, offset: 0.35 },
+    { opacity: 0, offset: 0.9 },
     { opacity: 0 },
-  ], timing);
+  ], { duration });
   return { el: flying, finished: flight.finished };
 }
 
@@ -1027,26 +1026,17 @@ function playSolvedCelebration(){
   restartClass([board.parentElement], 'is-solved');
 }
 
-// Mirrors the cell's CSS piece-pop so the two stay aligned while dissolving.
-const PIECE_POP_KEYFRAMES = [
-  { transform: 'scale(1)', easing: 'cubic-bezier(0.2, 0.7, 0.3, 1)' },
-  { transform: 'scale(1.045)', offset: 0.32, easing: 'cubic-bezier(0.45, 0, 0.25, 1)' },
-  { transform: 'scale(1)' },
-];
-
 // Dissolves the flyer over the opened cell instead of swapping instantly, which
 // hides the small corner and stroke differences between card and cell.
 function releaseFlyer(flying){
   if(!MOTION_ENABLED) return flying.remove();
-  flying.animate(PIECE_POP_KEYFRAMES, { duration: 380 });
-  flying.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: 'ease-out', fill: 'forwards' })
+  flying.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 280, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' })
     .finished.then(() => flying.remove());
 }
 
 function completeChoiceSelection(card, pieceIndex, flying){
   releaseFlyer(flying);
   card.remove();
-  choiceCards.classList.remove('is-busy');
   const piece = state.pieces[pieceIndex];
   piece.open = true;
   piece.x = piece.c * cellSize().w;
@@ -1062,18 +1052,27 @@ function completeChoiceSelection(card, pieceIndex, flying){
   state.choice.nextIndex++;
   refreshMergedVisuals();
   resolveAnyOverlaps();
-  saveCurrentPuzzleProgress();
 
-  if(state.choice.nextIndex >= TOTAL){
-    choiceHint.textContent = 'Complete';
-    choiceCards.innerHTML = '';
-    checkWin();
-    playSolvedCelebration();
-    return;
-  }
+  // The touchdown frame only swaps the cell in; rebuilding the tray (forced
+  // layout) and saving (sync localStorage) wait a frame so landing never drops one.
+  const pieces = state.pieces;
+  requestAnimationFrame(() => {
+    if(state.pieces !== pieces) return;
+    saveCurrentPuzzleProgress();
+    choiceCards.classList.remove('is-busy');
+    state.choice.busy = false;
 
-  renderChoiceOptions();
-  statusEl.textContent = 'Choose the card for the next slot.';
+    if(state.choice.nextIndex >= TOTAL){
+      choiceHint.textContent = 'Complete';
+      choiceCards.innerHTML = '';
+      checkWin();
+      playSolvedCelebration();
+      return;
+    }
+
+    renderChoiceOptions();
+    statusEl.textContent = 'Choose the card for the next slot.';
+  });
 }
 
 function handleChoiceSelection(card){
@@ -1095,7 +1094,6 @@ function handleChoiceSelection(card){
   flight.finished.then(() => {
     if(state.pieces !== pieces) return flight.el.remove();
     completeChoiceSelection(card, correctIndex, flight.el);
-    state.choice.busy = false;
   });
 }
 
@@ -1155,7 +1153,7 @@ function playRevealAnimation(piece){
   restartClass([el], 'revealing');
   // Choice mode only animates the ::before highlight; classic mode the piece.
   const onEnd = (event) => {
-    if(event.target !== el || !['piece-sheen', 'piece-reveal'].includes(event.animationName)) return;
+    if(event.target !== el || !['piece-glint', 'piece-reveal'].includes(event.animationName)) return;
     el.classList.remove('revealing');
     el.removeEventListener('animationend', onEnd);
   };

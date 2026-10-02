@@ -22,7 +22,7 @@ window.GAME_CONFIG = {
   ANIMATION_CONFIG: {
     enabled: true,
     // Card flight from the tray to the board.
-    moveDurationMs: 360,
+    moveDurationMs: 460,
   },
 
   // Fallback entries. The gallery uses compressed thumbs; full images load
