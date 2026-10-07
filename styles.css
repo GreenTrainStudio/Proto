@@ -1052,3 +1052,24 @@ button {
     aspect-ratio: 171 / 213.75;
   }
 }
+
+/* Hint finger: points at the correct tray card until the next action. */
+.hint-finger {
+  position: fixed;
+  z-index: 1000;
+  font-size: 56px;
+  line-height: 1;
+  pointer-events: none;
+  transform: translate(-50%, 0);
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.35));
+  animation: hint-finger-tap 900ms ease-in-out infinite;
+}
+
+@keyframes hint-finger-tap {
+  0%, 100% { transform: translate(-50%, 0); }
+  50% { transform: translate(-50%, -14px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hint-finger { animation: none; }
+}

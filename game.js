@@ -43,6 +43,11 @@ const choiceCards = document.getElementById('choiceCards');
 const choiceHint = document.getElementById('choiceHint');
 document.getElementById('newGameBtn').addEventListener('click', () => restartCurrentPuzzle());
 document.getElementById('backToMenuBtn').addEventListener('click', () => showMenu());
+document.getElementById('hintBtn').addEventListener('click', () => showHintFinger());
+// Any press anywhere (cards included) dismisses the hint finger.
+document.addEventListener('pointerdown', () => hideHintFinger(), true);
+document.addEventListener('keydown', () => hideHintFinger(), true);
+window.addEventListener('resize', () => hideHintFinger());
 window.addEventListener('pagehide', () => saveCurrentPuzzleProgress());
 document.addEventListener('visibilitychange', () => {
   if(document.visibilityState === 'hidden') saveCurrentPuzzleProgress();
@@ -1132,6 +1137,29 @@ function completeChoiceSelection(pieceIndex, flying){
     if(state.pieces !== pieces) return;
     state.choice.busy = false;
   });
+}
+
+let hintFinger = null;
+
+function hideHintFinger(){
+  hintFinger?.remove();
+  hintFinger = null;
+}
+
+// Points at the correct card in the tray; the player may still pick any card.
+function showHintFinger(){
+  hideHintFinger();
+  if(GAME_MODE !== 'choice' || state.choice.lives <= 0 || state.choice.nextIndex >= TOTAL) return;
+  const card = choiceCards.querySelector(`.choice-card[data-piece="${state.choice.nextIndex}"]`);
+  if(!card) return;
+  const rect = card.getBoundingClientRect();
+  hintFinger = document.createElement('div');
+  hintFinger.className = 'hint-finger';
+  hintFinger.setAttribute('aria-hidden', 'true');
+  hintFinger.textContent = '\u{1F446}';
+  hintFinger.style.left = `${rect.left + rect.width / 2}px`;
+  hintFinger.style.top = `${rect.top + rect.height * 0.6}px`;
+  document.body.appendChild(hintFinger);
 }
 
 function handleChoiceSelection(card){
