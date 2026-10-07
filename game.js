@@ -11,6 +11,11 @@ const SNAP = GAMEPLAY_CONFIG.snap;
 const MOVE_DURATION_MS = ANIMATION_CONFIG?.moveDurationMs ?? 300;
 const WRONG_SHAKE_DURATION_MS = 380;
 const WRONG_EXIT_DURATION_MS = 220;
+// Tray refresh: cards turn edge-on, swap faces, and turn back one by one.
+const CARD_FLIP_OUT_MS = 150;
+const CARD_FLIP_IN_MS = 420;
+const CARD_FLIP_STAGGER_MS = 45;
+const CARD_PERSPECTIVE = 'perspective(600px)';
 const ANIM_ENABLED = ANIMATION_CONFIG?.enabled !== false;
 const REDUCED_MOTION = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
 const MOTION_ENABLED = ANIM_ENABLED && !REDUCED_MOTION;
@@ -879,7 +884,12 @@ function createChoiceCard(pieceIndex){
   return card;
 }
 
-function renderChoiceOptions(){
+function nextChoiceIds(){
+  const correct = state.choice.nextIndex;
+  return shuffle([correct, ...choicePieceIds(new Set([correct])).slice(0, 3)]);
+}
+
+function renderChoiceOptions(ids = null){
   if(GAME_MODE !== 'choice') return;
   updateChoiceTarget();
   if(state.choice.nextIndex >= TOTAL){
@@ -888,45 +898,94 @@ function renderChoiceOptions(){
     return;
   }
 
-  const correct = state.choice.nextIndex;
-  const ids = [correct, ...choicePieceIds(new Set([correct])).slice(0, 3)];
-  state.choice.options = shuffle(ids);
+  state.choice.options = ids || nextChoiceIds();
   choiceCards.innerHTML = '';
   state.choice.options.forEach(pieceIndex => choiceCards.appendChild(createChoiceCard(pieceIndex)));
-  choiceHint.textContent = `Slot ${correct + 1} of ${TOTAL}`;
+  choiceHint.textContent = `Slot ${state.choice.nextIndex + 1} of ${TOTAL}`;
   choiceCards.querySelectorAll('button').forEach(card => {
     card.disabled = state.choice.lives <= 0;
   });
   dealChoiceCards();
 }
 
+function turnCardAway(card, order, keyframe = {}){
+  return card.animate([
+    { transform: `${CARD_PERSPECTIVE} rotateY(90deg) scale(0.94)`, ...keyframe },
+  ], {
+    duration: CARD_FLIP_OUT_MS,
+    delay: order * CARD_FLIP_STAGGER_MS,
+    easing: EASE_IN,
+    fill: 'forwards',
+  });
+}
+
+// Turns one card edge-on, gives it the new face while it is invisible, then
+// turns it back with a small overshoot. Resolves once the new face is set.
+async function flipChoiceCard(card, pieceIndex, order, pieces){
+  card.classList.remove('is-dealing');
+  const swapFace = () => {
+    setChoiceCardVisual(card, pieceIndex);
+    card.classList.remove('is-flying');
+    choiceCards.classList.remove('is-busy');
+  };
+  if(!MOTION_ENABLED) return swapFace();
+
+  const turnOut = turnCardAway(card, order);
+  try { await turnOut.finished; } catch { return; }
+  if(state.pieces !== pieces) return;
+  swapFace();
+  card.animate([
+    { transform: `${CARD_PERSPECTIVE} rotateY(-90deg) scale(0.94)`, opacity: 0, easing: 'cubic-bezier(0.2, 0.7, 0.3, 1)' },
+    { opacity: 1, offset: 0.2 },
+    { transform: `${CARD_PERSPECTIVE} rotateY(10deg) scale(1.02)`, opacity: 1, offset: 0.55, easing: 'cubic-bezier(0.4, 0, 0.4, 1)' },
+    { transform: `${CARD_PERSPECTIVE} rotateY(-3deg) scale(1)`, opacity: 1, offset: 0.8, easing: 'ease-in-out' },
+    { transform: `${CARD_PERSPECTIVE} rotateY(0deg) scale(1)`, opacity: 1 },
+  ], { duration: CARD_FLIP_IN_MS });
+  turnOut.cancel();
+}
+
+// Refreshes the tray in place with the flip. Resolves when every card shows
+// its new face, so the tray can take clicks while the cards settle.
+function refreshChoiceOptions(ids){
+  updateChoiceTarget();
+  choiceHint.textContent = `Slot ${state.choice.nextIndex + 1} of ${TOTAL}`;
+  const cards = [...choiceCards.querySelectorAll('.choice-card')];
+  if(cards.length !== ids.length){
+    renderChoiceOptions(ids);
+    return Promise.resolve();
+  }
+  state.choice.options = ids;
+  const pieces = state.pieces;
+  return Promise.all(cards.map((card, i) => flipChoiceCard(card, ids[i], i, pieces)));
+}
+
 function refreshWrongChoiceOptions(){
   const correct = state.choice.nextIndex;
-  const buttons = [...choiceCards.querySelectorAll('.choice-card')];
-  const correctButton = buttons.find(card => Number(card.dataset.piece) === correct);
-  if(!correctButton) {
-    renderChoiceOptions();
-    return;
+  const previousPosition = state.choice.options.indexOf(correct);
+  const ids = nextChoiceIds();
+  // Keep the correct card on offer, but force it into a different slot.
+  const position = ids.indexOf(correct);
+  if(ids.length > 1 && position === previousPosition){
+    const swapPosition = (position + 1) % ids.length;
+    [ids[position], ids[swapPosition]] = [ids[swapPosition], ids[position]];
   }
+  return refreshChoiceOptions(ids);
+}
 
-  const replacementIds = choicePieceIds(new Set([correct])).slice(0, 3);
-  let replacementIndex = 0;
-  buttons.forEach(card => {
-    if(card === correctButton) return;
-    setChoiceCardVisual(card, replacementIds[replacementIndex++]);
-  });
-
-  // Keep the correct card itself, but force it into a different slot.
-  const previousCorrectPosition = buttons.indexOf(correctButton);
-  const shuffledButtons = shuffle(buttons);
-  if(shuffledButtons.length > 1 && shuffledButtons.indexOf(correctButton) === previousCorrectPosition){
-    const swapPosition = (previousCorrectPosition + 1) % shuffledButtons.length;
-    [shuffledButtons[previousCorrectPosition], shuffledButtons[swapPosition]] =
-      [shuffledButtons[swapPosition], shuffledButtons[previousCorrectPosition]];
-  }
-  shuffledButtons.forEach(card => choiceCards.appendChild(card));
-  dealChoiceCards();
-  state.choice.options = buttons.map(card => Number(card.dataset.piece));
+// Turns the leftover cards away once the last slot is filled.
+function dismissChoiceCards(){
+  const pieces = state.pieces;
+  const clear = () => {
+    if(state.pieces !== pieces) return;
+    choiceCards.innerHTML = '';
+    choiceCards.classList.remove('is-busy');
+    state.choice.busy = false;
+  };
+  if(!MOTION_ENABLED) return clear();
+  const cards = [...choiceCards.querySelectorAll('.choice-card')];
+  Promise.all(cards.map((card, i) => turnCardAway(card, i, { opacity: 0 }).finished))
+    .catch(() => {})
+    .then(clear);
 }
 
 // FLIP flight: the flyer is laid out once at the target cell and animated in
@@ -971,13 +1030,8 @@ function flyChoiceCard(card, imagePiece, targetPiece = imagePiece){
   return { el: flying, finished: flight.finished };
 }
 
-function finishWrongChoice(card, flying){
-  flying.remove();
-  // Reuse the same button as one of the refreshed wrong options so the panel
-  // keeps four cards after the animation finishes.
-  card.classList.remove('is-flying');
+function finishWrongChoice(){
   choiceCards.classList.remove('is-busy');
-  refreshWrongChoiceOptions();
   state.choice.busy = false;
   statusEl.textContent = state.choice.lives > 0
     ? 'Wrong card. Try again.'
@@ -988,7 +1042,8 @@ function finishWrongChoice(card, flying){
   saveCurrentPuzzleProgress();
 }
 
-// Lands on the slot, flushes red with a damped shake, then drops away.
+// Lands on the slot, flushes red with a damped shake, then drops away while
+// the tray flips to a fresh set of cards.
 async function animateWrongChoice(card, imagePiece, targetPiece){
   const pieces = state.pieces;
   const flight = flyChoiceCard(card, imagePiece, targetPiece);
@@ -1013,12 +1068,15 @@ async function animateWrongChoice(card, imagePiece, targetPiece){
   ], { duration: shakeDuration, easing: 'ease-out' }).finished;
   if(state.pieces !== pieces) return flying.remove();
 
-  await flying.animate([
+  flying.animate([
     { opacity: 1, transform: 'none' },
     { opacity: 0, transform: 'translateY(12%) scale(0.86)' },
-  ], { duration: motionMs(WRONG_EXIT_DURATION_MS), easing: EASE_IN, fill: 'forwards' }).finished;
-  if(state.pieces !== pieces) return flying.remove();
-  finishWrongChoice(card, flying);
+  ], { duration: motionMs(WRONG_EXIT_DURATION_MS), easing: EASE_IN, fill: 'forwards' })
+    .finished.then(() => flying.remove());
+  // The flown card's slot stays empty until the flip gives it a new face.
+  await refreshWrongChoiceOptions();
+  if(state.pieces !== pieces) return;
+  finishWrongChoice();
 }
 
 function playSolvedCelebration(){
@@ -1034,9 +1092,9 @@ function releaseFlyer(flying){
     .finished.then(() => flying.remove());
 }
 
-function completeChoiceSelection(card, pieceIndex, flying){
+function completeChoiceSelection(pieceIndex, flying){
   releaseFlyer(flying);
-  card.remove();
+  // The flown card keeps its slot (invisible) so the tray flip can refill it.
   const piece = state.pieces[pieceIndex];
   piece.open = true;
   piece.x = piece.c * cellSize().w;
@@ -1056,22 +1114,23 @@ function completeChoiceSelection(card, pieceIndex, flying){
   // The touchdown frame only swaps the cell in; rebuilding the tray (forced
   // layout) and saving (sync localStorage) wait a frame so landing never drops one.
   const pieces = state.pieces;
-  requestAnimationFrame(() => {
+  requestAnimationFrame(async () => {
     if(state.pieces !== pieces) return;
     saveCurrentPuzzleProgress();
-    choiceCards.classList.remove('is-busy');
-    state.choice.busy = false;
 
     if(state.choice.nextIndex >= TOTAL){
       choiceHint.textContent = 'Complete';
-      choiceCards.innerHTML = '';
+      updateChoiceTarget();
+      dismissChoiceCards();
       checkWin();
       playSolvedCelebration();
       return;
     }
 
-    renderChoiceOptions();
     statusEl.textContent = 'Choose the card for the next slot.';
+    await refreshChoiceOptions(nextChoiceIds());
+    if(state.pieces !== pieces) return;
+    state.choice.busy = false;
   });
 }
 
@@ -1079,6 +1138,8 @@ function handleChoiceSelection(card){
   if(GAME_MODE !== 'choice' || state.choice.busy || state.choice.lives <= 0) return;
   const selectedIndex = Number(card.dataset.piece);
   const correctIndex = state.choice.nextIndex;
+  // A card picked while still settling from the flip launches from its rest pose.
+  card.getAnimations().forEach(animation => animation.finish());
   state.choice.busy = true;
   choiceCards.classList.add('is-busy');
 
@@ -1093,7 +1154,7 @@ function handleChoiceSelection(card){
   const flight = flyChoiceCard(card, state.pieces[correctIndex]);
   flight.finished.then(() => {
     if(state.pieces !== pieces) return flight.el.remove();
-    completeChoiceSelection(card, correctIndex, flight.el);
+    completeChoiceSelection(correctIndex, flight.el);
   });
 }
 
